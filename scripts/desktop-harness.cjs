@@ -6,7 +6,7 @@ const path = require("node:path");
 const http = require("node:http");
 const assert = require("node:assert/strict");
 const project = fs.readFileSync(path.join(__dirname, "project.txt"), "utf8");
-const results = path.join(project, "test-results", "indigo");
+const results = path.join(project, "test-results", "menu-fix");
 fs.mkdirSync(results, { recursive: true });
 const stageFile = path.join(results, "desktop-stage.json");
 const stage = fs.existsSync(stageFile)
@@ -297,6 +297,22 @@ app.whenReady().then(async () => {
       'window.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape"}))',
     );
     pass("grouped active dock and inactive menu");
+    assert.equal(await ui.executeJavaScript('!!document.querySelector(".inactive-trigger small")'), false);
+    await ui.executeJavaScript('document.querySelector(".dock-right").click()');
+    await until(() => ui.executeJavaScript('!document.querySelector(".popover")'));
+    await ui.executeJavaScript('document.querySelector(".service").click()');
+    await until(() => ui.executeJavaScript('!!document.querySelector(".target")'));
+    await ui.executeJavaScript('document.querySelector(".services").click()');
+    await until(() => ui.executeJavaScript('!document.querySelector(".target")'));
+    await ui.executeJavaScript('document.querySelector(".service").dispatchEvent(new MouseEvent("contextmenu", {bubbles:true,clientX:400}))');
+    await until(() => ui.executeJavaScript('!!document.querySelector(".context-menu")'));
+    await ui.executeJavaScript('document.querySelector(".inactive-trigger").click()');
+    await until(() => ui.executeJavaScript('!!document.querySelector(".inactive-menu") && !document.querySelector(".context-menu")'));
+    await ui.executeJavaScript('document.querySelector(".service").dispatchEvent(new MouseEvent("contextmenu", {bubbles:true,clientX:400}))');
+    await until(() => ui.executeJavaScript('!!document.querySelector(".context-menu") && !document.querySelector(".inactive-menu")'));
+    await ui.executeJavaScript('document.querySelector(".dock").click()');
+    await until(() => ui.executeJavaScript('!document.querySelector(".popover")'));
+    pass("dock dismissal, exclusive menus and no inactive count");
     await cmd({
       type: "settings",
       settings: {
@@ -429,3 +445,4 @@ app.whenReady().then(async () => {
     server.close();
   }
 });
+

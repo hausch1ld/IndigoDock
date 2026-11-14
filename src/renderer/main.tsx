@@ -150,6 +150,7 @@ function App() {
     action: Extract<Command, { type: "service" }>["action"],
   ) => void send({ type: "service", id: s.id, action }).catch(() => {});
   const open = (s: Service) => {
+    close();
     if (!s.url) {
       setEdit(s);
       return;
@@ -169,6 +170,7 @@ function App() {
     close();
   };
   const dragStart = (e: React.DragEvent, s: Service) => {
+    close();
     e.dataTransfer.setData("text/plain", s.id);
     e.dataTransfer.effectAllowed = "move";
     setPanel(null);
@@ -243,6 +245,7 @@ function App() {
         onClick={() => open(s)}
         onContextMenu={(e) => {
           e.preventDefault();
+          close();
           setContext({ id: s.id, x: e.clientX });
         }}
       >
@@ -271,7 +274,13 @@ function App() {
           IndigoDock
         </div>
         <div className="window-actions">
-          <button title="Einstellungen" onClick={() => setPanel("settings")}>
+          <button
+            title="Einstellungen"
+            onClick={() => {
+              close();
+              setPanel("settings");
+            }}
+          >
             <Settings size={15} />
           </button>
           <button
@@ -463,7 +472,11 @@ function App() {
           ))}
         </div>
       )}
-      <footer className="dock">
+      <footer
+        className="dock"
+        onClickCapture={close}
+        onContextMenuCapture={close}
+      >
         <div className="dock-left">
           <button
             className={"layout-trigger " + (panel === "layout" ? "active" : "")}
@@ -489,7 +502,6 @@ function App() {
               onClick={() => setPanel(panel === "inactive" ? null : "inactive")}
             >
               <Menu size={21} />
-              <small>{groups.inactive.length}</small>
             </button>
           )}
         </nav>
@@ -1167,3 +1179,4 @@ function SettingsDialog({
   );
 }
 createRoot(document.getElementById("root")!).render(<App />);
+

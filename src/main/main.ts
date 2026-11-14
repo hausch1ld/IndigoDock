@@ -204,7 +204,7 @@ async function main() {
         if (old) Object.assign(old, s);
         else c.services.push(s);
         if (s.running && !views.views.has(s.id)) views.start(old ?? s);
-        else if (!s.running && views.views.has(s.id)) views.stop(s);
+        else if (!s.running && views.views.has(s.id)) await views.stop(s);
         const v = views.views.get(s.id);
         v?.webContents.setAudioMuted(s.muted);
         v?.webContents.setZoomFactor(s.zoom);
@@ -215,7 +215,7 @@ async function main() {
         if (!s) throw Error("Dienst fehlt");
         const wc = views.views.get(s.id)?.webContents;
         if (cmd.action === "start") views.start(s);
-        if (cmd.action === "stop") views.stop(s);
+        if (cmd.action === "stop") await views.stop(s);
         if (cmd.action === "reload" && wc) wc.reload();
         if (cmd.action === "reset") {
           s.currentUrl = "";
@@ -236,7 +236,7 @@ async function main() {
             cancelId: 0,
           });
           if (r.response !== 1) break;
-          views.stop(s);
+          await views.stop(s);
           c.services = c.services.filter((x) => x.id !== s.id);
           for (const l of Object.values(c.layouts))
             for (const col of l.columns) {
@@ -255,10 +255,10 @@ async function main() {
             cancelId: 0,
           });
           if (r.response !== 1) break;
-          group.forEach((s) => {
-            views.stop(s);
+          for (const s of group) {
+            await views.stop(s);
             s.currentUrl = "";
-          });
+          }
           const ses = session.fromPartition("persist:multidock-" + s.profile);
           await ses.clearStorageData();
           await ses.clearCache();
@@ -325,6 +325,9 @@ async function main() {
     if (!quitting && store.config.settings.closeToTray) {
       e.preventDefault();
       win.hide();
+    } else if (!quitting) {
+      e.preventDefault();
+      app.quit();
     }
   });
   win.on("closed", () => {
@@ -401,13 +404,13 @@ else {
       const profiles = [
         ...new Set(store.config.services.map((s) => s.profile)),
       ];
-      void Promise.allSettled(
+      void views.close().then(() => Promise.allSettled(
         profiles.map(async (profile) => {
           const ses = session.fromPartition("persist:multidock-" + profile);
           ses.flushStorageData();
           await ses.cookies.flushStore();
         }),
-      ).then((results) => {
+      )).then((results) => {
         if (results.some((r) => r.status === "rejected"))
           log(
             "Session konnte beim Beenden nicht vollständig geschrieben werden.",
@@ -428,4 +431,5 @@ else {
   });
   app.on("window-all-closed", () => app.quit());
 }
+
 

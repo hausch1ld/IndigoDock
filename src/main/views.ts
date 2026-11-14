@@ -175,7 +175,7 @@ export class ViewManager {
     this.layout();
     this.changed();
   }
-  stop(s: Service) {
+  async stop(s: Service) {
     const v = this.views.get(s.id);
     if (v) {
       v.webContents.session.flushStorageData();
@@ -188,7 +188,7 @@ export class ViewManager {
         );
       this.window.contentView.removeChildView(v);
       this.views.delete(s.id);
-      v.webContents.close({ waitForBeforeUnload: false });
+      await this.closeContents(v.webContents);
     }
     s.running = false;
     this.status[s.id] = { state: "stopped" };
@@ -237,10 +237,28 @@ export class ViewManager {
     if (!visible) this.captures = {};
     this.layout();
   }
-  close() {
-    for (const v of this.views.values())
-      v.webContents.close({ waitForBeforeUnload: false });
+  private async closeContents(wc: WebContents) {
+    if (wc.isDestroyed()) return;
+    const ses = wc.session;
+    await new Promise<void>((resolve) => {
+      const timer = setTimeout(() => {
+        this.log("Dienst reagiert beim Schließen nicht; erzwungenes Beenden.");
+        if (!wc.isDestroyed()) wc.close({ waitForBeforeUnload: false });
+        resolve();
+      }, 5000);
+      wc.once("destroyed", () => { clearTimeout(timer); resolve(); });
+      // The user already requested Stop/Quit; run the page's save handlers,
+      // but do not let it veto that explicit request.
+      wc.once("will-prevent-unload", (event) => event.preventDefault());
+      wc.close({ waitForBeforeUnload: true });
+    });
+    ses.flushStorageData();
+    await ses.cookies.flushStore().catch(() => this.log("Session konnte nach dem Schließen nicht geschrieben werden."));
+  }
+  async close() {
+    const closing = [...this.views.values()].map((v) => this.closeContents(v.webContents));
     this.views.clear();
+    await Promise.all(closing);
   }
 }
 

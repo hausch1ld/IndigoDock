@@ -6,7 +6,7 @@ const path = require("node:path");
 const http = require("node:http");
 const assert = require("node:assert/strict");
 const project = fs.readFileSync(path.join(__dirname, "project.txt"), "utf8");
-const results = path.join(project, "test-results", "menu-fix");
+const results = path.join(project, "test-results", "unload-fix");
 fs.mkdirSync(results, { recursive: true });
 const stageFile = path.join(results, "desktop-stage.json");
 const stage = fs.existsSync(stageFile)
@@ -19,7 +19,7 @@ const server = http.createServer((req, res) => {
   requests++;
   res.setHeader("Content-Type", "text/html");
   res.end(
-    '<!doctype html><title>MultiDock local fixture</title><body style="background:#192d36;color:white;font:22px Segoe UI;padding:35px"><h1>Lokaler Integrationstest</h1><p>Native WebContentsView · persistentes Profil</p><script>localStorage.setItem("fixture","persisted");document.cookie="fixture=persisted;max-age=86400;path=/";setInterval(()=>document.title="alive-"+Date.now(),100)</script>',
+    '<!doctype html><title>MultiDock local fixture</title><body style="background:#192d36;color:white;font:22px Segoe UI;padding:35px"><h1>Lokaler Integrationstest</h1><p>Native WebContentsView · persistentes Profil</p><script>localStorage.setItem("fixture","persisted");addEventListener("beforeunload",()=>localStorage.setItem("closedNormally","yes"));document.cookie="fixture=persisted;max-age=86400;path=/";setInterval(()=>document.title="alive-"+Date.now(),100)</script>',
   );
 });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -85,6 +85,7 @@ app.whenReady().then(async () => {
         await w.executeJavaScript('localStorage.getItem("fixture")'),
         "persisted",
       );
+      assert.equal(await w.executeJavaScript('localStorage.getItem("closedNormally")'), "yes");
       fs.writeFileSync(
         path.join(results, "desktop-integration.json"),
         JSON.stringify(
@@ -445,4 +446,5 @@ app.whenReady().then(async () => {
     server.close();
   }
 });
+
 

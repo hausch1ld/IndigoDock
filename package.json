@@ -1,0 +1,81 @@
+{
+  "name": "indigodock",
+  "version": "1.1.0",
+  "private": true,
+  "description": "Modulare Multi-Service-Desktop-App für Windows",
+  "author": "hausch1ld",
+  "license": "MIT",
+  "main": "dist/main.cjs",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "tsc --noEmit && node scripts/build.mjs",
+    "test": "tsx --test tests/*.test.ts",
+    "test:integration": "node scripts/integration.mjs",
+    "dist": "npm run build && electron-builder --win nsis portable --publish never",
+    "start": "electron .",
+    "postinstall": "node node_modules/electron/install.js",
+    "dist:dir": "npm run build && electron-builder --win --dir"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.11",
+    "lucide-react": "^0.468.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "electron": "45.3.2",
+    "electron-builder": "^26.0.0",
+    "esbuild": "^0.25.0",
+    "playwright": "^1.56.0",
+    "prettier": "^3.10.1",
+    "simple-icons": "^16.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "vite": "^7.2.0"
+  },
+  "overrides": {
+    "minimatch@>=7 <11.0.1": "^11.0.8"
+  },
+  "build": {
+    "appId": "de.multidock.desktop",
+    "productName": "IndigoDock",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "electronDist": "node_modules/electron/dist",
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "assets/icon.ico",
+      "signExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "deleteAppDataOnUninstall": false
+    },
+    "portable": {
+      "artifactName": "IndigoDock-${version}-portable.exe"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "hausch1ld",
+        "repo": "IndigoDock"
+      }
+    ]
+  }
+}

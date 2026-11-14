@@ -1,0 +1,139 @@
+import {
+  session,
+  dialog,
+  desktopCapturer,
+  webContents,
+  type WebContents,
+  type Session,
+  type BaseWindow,
+} from "electron";
+import type { Service, Permission, Config } from "../shared/model";
+import { origin } from "../shared/security";
+export class PermissionManager {
+  installed = new Set<string>();
+  busy = new Set<string>();
+  constructor(
+    private config: () => Config,
+    private lookup: (wc: WebContents) => Service | undefined,
+    private changed: () => void,
+    private window: BaseWindow,
+  ) {}
+  get(profile: string): Session {
+    const ses = session.fromPartition("persist:multidock-" + profile);
+    if (this.installed.has(profile)) return ses;
+    this.installed.add(profile);
+    const resolve = (wc: WebContents | null, url: string) => {
+      const s = wc
+        ? this.lookup(wc)
+        : this.config().services.find(
+            (s) => s.profile === profile && origin(s.url) === origin(url),
+          );
+      return s && s.profile === profile && origin(url) === origin(s.url)
+        ? s
+        : undefined;
+    };
+    const keys = (permission: string, types?: string[]): Permission[] =>
+      permission === "media"
+        ? types?.length
+          ? types.map((t) => (t === "audio" ? "microphone" : "camera"))
+          : ["microphone", "camera"]
+        : permission === "notifications"
+          ? ["notifications"]
+          : permission === "display-capture"
+            ? ["screen"]
+            : [];
+    ses.setPermissionCheckHandler((wc, permission, url, details) => {
+      const s = resolve(wc, url);
+      if (!s) return false;
+      if (
+        permission === "notifications" &&
+        !this.config().settings.notifications
+      )
+        return false;
+      const type = (details as { mediaType?: string }).mediaType;
+      const k = keys(permission, type ? [type] : undefined);
+      return !!k.length && k.every((k) => s.permissions[k] === "allow");
+    });
+    ses.setPermissionRequestHandler((wc, permission, callback, details) => {
+      const s = resolve(wc, details.requestingUrl);
+      const k = keys(
+        permission,
+        (details as { mediaTypes?: string[] }).mediaTypes,
+      );
+      if (
+        !s ||
+        !k.length ||
+        (permission === "notifications" &&
+          !this.config().settings.notifications) ||
+        k.some((k) => s.permissions[k] === "deny")
+      )
+        return callback(false);
+      if (k.every((k) => s.permissions[k] === "allow")) return callback(true);
+      const requestKey = s.id + permission;
+      if (this.busy.has(requestKey)) return callback(false);
+      this.busy.add(requestKey);
+      dialog
+        .showMessageBox(this.window, {
+          type: "question",
+          title: "IndigoDock · Berechtigung",
+          message: `${s.name}: ${k.join(", ")} erlauben?`,
+          detail: `Nur für ${origin(s.url)}. Die Entscheidung kann in den Diensteinstellungen geändert werden.`,
+          buttons: ["Verweigern", "Erlauben"],
+          defaultId: 0,
+          cancelId: 0,
+        })
+        .then(({ response }) => {
+          const allowed =
+            response === 1 &&
+            !wc.isDestroyed() &&
+            origin(wc.getURL()) === origin(s.url);
+          for (const key of k) s.permissions[key] = allowed ? "allow" : "deny";
+          this.changed();
+          callback(allowed);
+        })
+        .catch(() => callback(false))
+        .finally(() => this.busy.delete(requestKey));
+    });
+    ses.setDisplayMediaRequestHandler(async (request, callback) => {
+      try {
+        const wc = request.frame ? webContents.fromFrame(request.frame) : null;
+        const s = resolve(wc ?? null, request.securityOrigin);
+        if (!s || s.permissions.screen === "deny" || !request.userGesture)
+          return callback({});
+        const sources = await desktopCapturer.getSources({
+          types: ["screen", "window"],
+          thumbnailSize: { width: 0, height: 0 },
+        });
+        const result = await dialog.showMessageBox(this.window, {
+          type: "question",
+          title: "Bildschirm teilen",
+          message: `${s.name} · Quelle auswählen`,
+          detail:
+            "Nur die ausgewählte Quelle wird geteilt. Bei angefordertem Audio wird der gesamte Windows-Systemton mitgesendet.",
+          buttons: ["Abbrechen", ...sources.map((x) => x.name)],
+          defaultId: 0,
+          cancelId: 0,
+          noLink: true,
+        });
+        if (
+          result.response < 1 ||
+          !wc ||
+          wc.isDestroyed() ||
+          origin(wc.getURL()) !== request.securityOrigin
+        )
+          return callback({});
+        callback({
+          video: sources[result.response - 1],
+          ...(request.audioRequested ? { audio: "loopback" } : {}),
+        });
+      } catch {
+        callback({});
+      }
+    });
+    // Chromium's normal Save As dialog is retained. Never auto-open downloaded files.
+    ses.on("will-download", (_e, item) => {
+      item.setSaveDialogOptions({ title: "IndigoDock · Datei speichern" });
+    });
+    return ses;
+  }
+}

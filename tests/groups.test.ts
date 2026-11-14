@@ -1,0 +1,35 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { defaults } from "../src/main/registry";
+import { emptyLayout, assign } from "../src/shared/layout";
+import { saveGroup, activateGroup, deleteGroup } from "../src/shared/groups";
+import { configSchema } from "../src/shared/model";
+test("saved groups preserve layout widths independently and deletion preserves services", () => {
+  const c = defaults();
+  c.count = 3;
+  c.layouts[3] = emptyLayout(3);
+  const ids = c.services.slice(0, 3).map((s) => s.id);
+  ids.forEach((id, i) => assign(c.layouts[3], id, i));
+  c.layouts[3].ratios = [0.2, 0.5, 0.3];
+  saveGroup(c, "test");
+  c.layouts[3].ratios = [0.4, 0.3, 0.3];
+  c.count = 1;
+  assert.deepEqual(activateGroup(c, "test"), ids);
+  assert.equal(c.count, 3);
+  assert.deepEqual(c.layouts[3].ratios, [0.2, 0.5, 0.3]);
+  const roundtrip = configSchema.parse(JSON.parse(JSON.stringify(c)));
+  assert.deepEqual(roundtrip.groups, c.groups);
+  deleteGroup(c, "test");
+  assert.equal(c.groups.length, 0);
+  assert.equal(c.services.length, 11);
+  assert.equal(c.activeGroup, null);
+});
+test("empty columns cannot create groups; regrouping avoids duplicate dock members", () => {
+  const c = defaults();
+  assert.throws(() => saveGroup(c, "empty"));
+  assign(c.layouts[1], c.services[0].id, 0);
+  saveGroup(c, "first");
+  saveGroup(c, "second");
+  assert.equal(c.groups.length, 1);
+  assert.equal(c.groups[0].id, "second");
+});

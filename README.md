@@ -2,17 +2,19 @@
 
 One workspace for all your apps. Free and customizable.
 
-Eine lokale Windows-11-App mit Electron 45.3.2, React und TypeScript. Native `WebContentsView`s statt Iframes oder eines UI-Prototyps. Oberfläche auf Deutsch, dunkles Theme, 1–4 Spalten, dauerhaft laufende Dienstprozesse und getrennte Chromium-Profile.
+Eine lokale Windows-11-App mit Castlabs Electron 45.2.1+wvcus, React und TypeScript. Native `WebContentsView`s statt Iframes oder eines UI-Prototyps. Oberfläche auf Deutsch, dunkles Theme, 1–4 Spalten, dauerhaft laufende Dienstprozesse und getrennte Chromium-Profile.
 
 ## Direkt starten
 
 Die entpackbare Windows-Version enthält `IndigoDock.exe` und alle benötigten Laufzeitdateien. **Den gesamten Ordner behalten**, nicht nur die EXE kopieren. Die App verwendet `%APPDATA%\multidock` für Konfiguration und Sessions. „Portabel“ bedeutet hier ohne Installation startbar; die Profildaten bleiben im Windows-Benutzerprofil.
 
-Erster Start: Alle elf vordefinierten Dienste sind absichtlich gestoppt. Rechtsklick auf ein Icon → **Starten**, danach Icon anklicken. Bei mehreren Spalten die Zielspalte auswählen. Alternativ das Icon in eine Spalte ziehen; dieser ausdrückliche Drop startet auch einen gestoppten Dienst. Ein gestoppter Dienst startet durch bloße Auswahl oder Layoutwechsel niemals automatisch.
+Erster Start: Alle elf vordefinierten Dienste sind absichtlich gestoppt. Rechtsklick auf ein Icon → **Starten**, danach Icon anklicken. Bei mehreren Spalten die Zielspalte auswählen. Alternativ das Icon in eine Spalte ziehen; dieser ausdrückliche Drop startet auch einen gestoppten Dienst. Gespeicherte Gruppen starten ihre Dienste beim Aktivieren; die Einzelansicht außerhalb einer aktiven Gruppe startet den ausgewählten Dienst ebenfalls.
 
 Home Assistant: Rechtsklick → Einstellungen → eigene URL eintragen. Lokales HTTP erfordert die ausdrückliche HTTP-Option. Ungültige Zertifikate werden nicht übergangen.
 
 ## Bedienung
+
+- Spaltenmenü → **Als Gruppe speichern** speichert zugewiesene Dienste und Spaltenbreiten. Der Rahmen im Dock ruft die Gruppe auf. Ein anderer Dienst öffnet sich anschließend in einer Einzelansicht. Rechtsklick auf den Rahmen → **Gruppe löschen** behält die Dienste. Ein Dienst gehört jeweils zu einer Gruppe; erneutes Gruppieren ersetzt überlappende Gruppen.
 
 - Links unten: 1–4 Spalten auswählen. Trennlinien ziehen; mit Tastaturfokus auf einem Trenner verschieben Pfeiltasten die Grenze um 20 Pixel.
 - Mittig: Dienste per Drag-and-drop sortieren. Rechtsklick: Start/Stopp, Reload, Stumm, Start-URL, externer Browser, Einstellungen, Entfernen.
@@ -29,7 +31,7 @@ Implementiert: BaseWindow, native Dienstansichten, typisierte und laufzeitvalidi
 
 **Nicht als vollständig verifiziert zu verstehen:** Anbieter-Logins, Discord Voice, Hardwaremedientasten, Bildschirmfreigabe mit echten Geräten, Spotify-DRM, gemischte DPI-Monitore und Windows-Autostart. Dafür existiert die [manuelle Testanleitung](docs/TESTING.md).
 
-Google kann eingebettete Anmeldungen blockieren. Spotify kann ohne passende Widevine-Integration keine geschützte Musik abspielen. IndigoDock installiert keine DRM-Komponenten und kopiert keine Browser-Cookies. Der externe Browser ist ein eigenständiger Fallback; dessen Login wird **nicht** in IndigoDock übertragen. Einzelheiten und Quellen: [Kompatibilität](docs/COMPATIBILITY.md).
+Google kann eingebettete Anmeldungen blockieren. Spotify kann ohne passende Widevine-Integration keine geschützte Musik abspielen. IndigoDock verwendet ab 1.2.0 Castlabs Electron mit Widevine-Komponentenverwaltung. Die lokale Windows-Laufzeit ist mit EVS für Streaming signiert. Die tatsächliche Spotify-Wiedergabe ist noch manuell zu bestätigen. Browser-Cookies werden nicht kopiert. Der externe Browser ist ein eigenständiger Fallback; dessen Login wird **nicht** in IndigoDock übertragen. Einzelheiten und Quellen: [Kompatibilität](docs/COMPATIBILITY.md).
 
 Medientasten laufen über Chromiums native Media-Session-/Windows-SMTC-Integration. IndigoDock installiert keine globalen Hooks und sendet keinen Tastendruck an mehrere Dienste. Eine eigene, deterministische „zuletzt aktiver Dienst“-Umschaltung wird nicht versprochen: Chromium und Windows bestimmen die aktive Sitzung. Die Lautstärketasten bleiben bei Windows.
 
@@ -91,3 +93,4 @@ Updates: Einstellungen → Erweitert → Auf Updates prüfen. Download und Insta
 Die lokale Installation liegt unter %LOCALAPPDATA%\Programs\IndigoDock. Der Datenordner bleibt aus Kompatibilitätsgründen %APPDATA%\multidock; bestehende Session-Partitionen bleiben gleich. Updates löschen ihn nicht. Anbieter können trotzdem erneute Anmeldung verlangen.
 
 Spotify/Widevine ist zurückgestellt. Discord-Browserkompatibilität und Quellen-Auswahl sind implementiert; der Live-Bildschirmtest ist noch offen. Beim lokalen Start verlangten Discord und Steam eine erneute Anmeldung.
+

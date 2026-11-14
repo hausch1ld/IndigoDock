@@ -14,4 +14,3 @@ test("Discord restores channels but not transient authentication routes", () => 
     "https://example.com/dashboard",
   );
 });
-

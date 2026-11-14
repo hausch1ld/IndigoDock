@@ -6,7 +6,7 @@ const path = require("node:path");
 const http = require("node:http");
 const assert = require("node:assert/strict");
 const project = fs.readFileSync(path.join(__dirname, "project.txt"), "utf8");
-const results = path.join(project, "test-results", "unload-fix");
+const results = path.join(project, "test-results", "groups-1.2-verified");
 fs.mkdirSync(results, { recursive: true });
 const stageFile = path.join(results, "desktop-stage.json");
 const stage = fs.existsSync(stageFile)
@@ -409,6 +409,26 @@ app.whenReady().then(async () => {
     await cmd({ type: "assign", id: "test-a", column: 0 });
     await cmd({ type: "assign", id: "test-b", column: 1 });
     await cmd({ type: "ratios", ratios: [0.25, 0.45, 0.3] });
+    await cmd({type:'saveService',service:{...(await state()).config.services.find(s=>s.id==='test-error'),url,allowHttp:true}});
+    await cmd({ type: 'assign', id: 'test-error', column: 2 });
+    await ui.executeJavaScript('document.querySelector(".layout-trigger").click()');
+    await until(() => ui.executeJavaScript('!!document.querySelector(".save-group") && !document.querySelector(".save-group").disabled'));
+    await ui.executeJavaScript('document.querySelector(".save-group").click()');
+    await until(async () => (await state()).config.groups.length === 1);
+    const savedGroup = (await state()).config.groups[0];
+    assert.deepEqual(savedGroup.layout.ratios, [0.25, 0.45, 0.3]);
+    await until(() => ui.executeJavaScript('!!document.querySelector(".dock-group")'));
+    assert.equal(await ui.executeJavaScript('document.querySelector(".dock-group").querySelectorAll(".group-service").length'), 3);
+    await cmd({type:'solo',id:'test-a'});
+    assert.equal((await state()).config.count,1);
+    await ui.executeJavaScript('document.querySelector(".dock-group").click()');
+    await until(async () => (await state()).config.count===3);
+    assert.deepEqual((await state()).config.layouts[3].ratios,[.25,.45,.3]);
+    await cmd({type:'deleteGroup',id:savedGroup.id});
+    assert.equal((await state()).config.groups.length,0);
+    assert.equal((await state()).config.services.some(s => s.id==='test-a'),true);
+    pass('saved group dock frame, widths, single view and group deletion');
+    await cmd({type:'layout',count:3});
     await cmd({ type: "overlay", visible: true });
     await wait(100);
     try {

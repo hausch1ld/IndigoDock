@@ -26,6 +26,14 @@ export class Store {
           else normalize(l, ids);
         }
         config.layouts[config.count] ??= emptyLayout(config.count);
+        config.groups = config.groups.filter((g) =>
+          g.layout.columns.every((col) =>
+            col.services.every((id) => ids.has(id)),
+          ),
+        );
+        for (const g of config.groups) normalize(g.layout, ids);
+        if (!config.groups.some((g) => g.id === config.activeGroup))
+          config.activeGroup = null;
         return config;
       } catch {
         if (fs.existsSync(file))

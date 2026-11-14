@@ -25,6 +25,7 @@ import { serviceSchema } from "../shared/model";
 import { bounds, resizePair, TOP, TABS, BOTTOM } from "../shared/layout";
 import "./style.css";
 import { dockGroups, reordered } from "../shared/dock";
+import { groupIds } from "../shared/groups";
 declare global {
   interface Window {
     multidock: Bridge;
@@ -84,6 +85,10 @@ function App() {
     "layout" | "settings" | "add" | "inactive" | null
   >(null);
   const [edit, setEdit] = useState<Service | null>(null);
+  const [groupContext, setGroupContext] = useState<{
+    id: string;
+    x: number;
+  } | null>(null);
   const [choose, setChoose] = useState<string | null>(null),
     [drag, setDrag] = useState<string | null>(null),
     [hover, setHover] = useState<number | null>(null),
@@ -111,6 +116,7 @@ function App() {
     return () => window.removeEventListener("resize", resize);
   }, []);
   const close = () => {
+    setGroupContext(null);
     setPanel(null);
     setEdit(null);
     setChoose(null);
@@ -124,6 +130,7 @@ function App() {
     choose ||
     drag ||
     context ||
+    groupContext ||
     error ||
     state?.persistenceError
   );
@@ -143,7 +150,11 @@ function App() {
     l = c.layouts[c.count],
     ratios = draftRatios ?? l.ratios,
     rects = bounds(size.width, size.height, ratios, c.settings.showColumnTabs);
-  const groups = dockGroups(c.services, c.settings);
+  const groupedIds = new Set(c.groups.flatMap((g) => groupIds(g.layout)));
+  const groups = dockGroups(
+    c.services.filter((s) => !groupedIds.has(s.id)),
+    c.settings,
+  );
   const service = (id: string | null) => c.services.find((s) => s.id === id);
   const action = (
     s: Service,
@@ -151,6 +162,10 @@ function App() {
   ) => void send({ type: "service", id: s.id, action }).catch(() => {});
   const open = (s: Service) => {
     close();
+    if (c.activeGroup) {
+      void send({ type: "solo", id: s.id }).catch(() => {});
+      return;
+    }
     if (!s.url) {
       setEdit(s);
       return;
@@ -489,6 +504,39 @@ function App() {
           </button>
         </div>
         <nav className="services" aria-label="Dienste">
+          {c.groups.map((g) => (
+            <button
+              key={g.id}
+              className={
+                "dock-group " + (c.activeGroup === g.id ? "selected" : "")
+              }
+              title={g.name}
+              aria-label={"Gruppe: " + g.name}
+              onClick={() => {
+                close();
+                void send({ type: "activateGroup", id: g.id }).catch(() => {});
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                close();
+                setGroupContext({ id: g.id, x: e.clientX });
+              }}
+            >
+              {groupIds(g.layout).map((id) => {
+                const s = service(id);
+                return s ? (
+                  <span
+                    key={id}
+                    className={
+                      "group-service " + (s.running ? "running" : "stopped")
+                    }
+                  >
+                    <Icon service={s} />
+                  </span>
+                ) : null;
+              })}
+            </button>
+          ))}
           {groups.primary.map(renderService)}
           {groups.separator && (
             <span className="dock-separator" role="separator" />
@@ -509,10 +557,50 @@ function App() {
           <Clock />
         </div>
       </footer>
-      {(panel || context || edit) && <div className="scrim" onClick={close} />}
+      {(panel || context || edit || groupContext) && (
+        <div className="scrim" onClick={close} />
+      )}
+      {groupContext && (
+        <div
+          className="context-menu popover"
+          style={{
+            left: Math.min(
+              size.width - 240,
+              Math.max(10, groupContext.x - 105),
+            ),
+          }}
+        >
+          <button
+            onClick={() => {
+              void send({ type: "activateGroup", id: groupContext.id });
+              close();
+            }}
+          >
+            Gruppe anzeigen
+          </button>
+          <button
+            onClick={() => {
+              void send({ type: "deleteGroup", id: groupContext.id });
+              close();
+            }}
+          >
+            Gruppe löschen
+          </button>
+        </div>
+      )}
       {panel === "layout" && (
         <div className="layout-menu popover">
           <span className="eyebrow">DEIN WORKSPACE</span>
+          <button
+            className="save-group"
+            disabled={l.columns.some((col) => !col.active)}
+            onClick={() => {
+              void send({ type: "saveGroup" }).catch(() => {});
+              close();
+            }}
+          >
+            Als Gruppe speichern
+          </button>
           <div className="layout-options">
             {[1, 2, 3, 4].map((n) => (
               <button
@@ -551,6 +639,11 @@ function App() {
                 setContext({ id: s.id, x: e.clientX });
               }}
               onClick={() => {
+                if (c.activeGroup) {
+                  close();
+                  void send({ type: "solo", id: s.id }).catch(() => {});
+                  return;
+                }
                 void send({ type: "service", id: s.id, action: "start" })
                   .then(() => {
                     setPanel(null);
@@ -1179,4 +1272,3 @@ function SettingsDialog({
   );
 }
 createRoot(document.getElementById("root")!).render(<App />);
-

@@ -56,6 +56,17 @@ export const configSchema = z.object({
   services: z.array(serviceSchema).max(100),
   count: z.number().int().min(1).max(4),
   layouts: z.record(z.string(), layoutSchema),
+  groups: z
+    .array(
+      z.object({
+        id: z.string().max(64),
+        name: z.string().max(120),
+        layout: layoutSchema,
+      }),
+    )
+    .max(100)
+    .default([]),
+  activeGroup: z.string().nullable().default(null),
   settings: settingsSchema,
   window: z.object({
     x: z.number().optional(),
@@ -93,6 +104,10 @@ export type Snapshot = {
 };
 const id = z.string().max(64);
 export const commandSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("saveGroup") }),
+  z.object({ type: z.literal("activateGroup"), id }),
+  z.object({ type: z.literal("deleteGroup"), id }),
+  z.object({ type: z.literal("solo"), id }),
   z.object({
     type: z.literal("layout"),
     count: z.number().int().min(1).max(4),

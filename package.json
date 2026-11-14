@@ -1,6 +1,6 @@
 {
   "name": "indigodock",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "description": "Modulare Multi-Service-Desktop-App für Windows",
   "author": "hausch1ld",
@@ -27,7 +27,7 @@
     "@types/node": "^24.0.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
-    "electron": "45.3.2",
+    "electron": "https://github.com/castlabs/electron-releases/archive/refs/tags/v45.2.1+wvcus.tar.gz",
     "electron-builder": "^26.0.0",
     "esbuild": "^0.25.0",
     "playwright": "^1.56.0",

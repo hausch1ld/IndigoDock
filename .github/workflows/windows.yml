@@ -28,7 +28,9 @@ jobs:
             release/*.blockmap
             release/latest.yml
           if-no-files-found: error
+      # Public releases remain paused until EVS signing is configured in CI.
       - name: Publish version once
+        if: false
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -40,3 +42,4 @@ jobs:
           $files = Get-ChildItem release -File | Where-Object { $_.Extension -in '.exe','.blockmap' -or $_.Name -eq 'latest.yml' } | ForEach-Object FullName
           gh release create $tag @files --target $env:GITHUB_SHA --title "IndigoDock $version" --notes "Windows x64. Installer und portable Version. Profil bleibt unter %APPDATA%\multidock erhalten. Spotify-DRM ist zurückgestellt. Nicht mit einem Herausgeberzertifikat signiert."
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+

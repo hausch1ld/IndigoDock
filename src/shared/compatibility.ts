@@ -8,7 +8,8 @@ export function serviceUserAgent(original: string, url: string) {
   } catch {
     return original;
   }
-  if (host !== "discord.com" && host !== "www.discord.com") return original;
+  if (!["discord.com", "www.discord.com", "open.spotify.com"].includes(host))
+    return original;
   return original
     .replace(/\sElectron\/\S+/g, "")
     .replace(/\s(?:MultiDock|multidock|IndigoDock|indigodock)\/\S+/g, "");
@@ -31,4 +32,3 @@ export function serviceStartUrl(configured: string, restored: string) {
     return configured;
   }
 }
-

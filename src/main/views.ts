@@ -246,19 +246,27 @@ export class ViewManager {
         if (!wc.isDestroyed()) wc.close({ waitForBeforeUnload: false });
         resolve();
       }, 5000);
-      wc.once("destroyed", () => { clearTimeout(timer); resolve(); });
+      wc.once("destroyed", () => {
+        clearTimeout(timer);
+        resolve();
+      });
       // The user already requested Stop/Quit; run the page's save handlers,
       // but do not let it veto that explicit request.
       wc.once("will-prevent-unload", (event) => event.preventDefault());
       wc.close({ waitForBeforeUnload: true });
     });
     ses.flushStorageData();
-    await ses.cookies.flushStore().catch(() => this.log("Session konnte nach dem Schließen nicht geschrieben werden."));
+    await ses.cookies
+      .flushStore()
+      .catch(() =>
+        this.log("Session konnte nach dem Schließen nicht geschrieben werden."),
+      );
   }
   async close() {
-    const closing = [...this.views.values()].map((v) => this.closeContents(v.webContents));
+    const closing = [...this.views.values()].map((v) =>
+      this.closeContents(v.webContents),
+    );
     this.views.clear();
     await Promise.all(closing);
   }
 }
-

@@ -10,6 +10,7 @@ import {
   shell,
   dialog,
   session,
+  components,
 } from "electron";
 import path from "node:path";
 import fs from "node:fs";
@@ -21,6 +22,13 @@ import { assign, changeLayout, emptyLayout } from "../shared/layout";
 import { safeIcon, validUrl } from "../shared/security";
 import { persistentDataPath } from "./data-path";
 import { UpdateManager } from "./updates";
+import {
+  saveGroup,
+  activateGroup,
+  deleteGroup,
+  groupIds,
+} from "../shared/groups";
+import { randomUUID } from "node:crypto";
 app.setName("IndigoDock");
 app.setPath(
   "userData",
@@ -49,7 +57,8 @@ function changed() {
   store.schedule();
   clearTimeout(notifyTimer);
   notifyTimer = setTimeout(() => {
-    if (!quitting && ui?.webContents && !ui.webContents.isDestroyed()) ui.webContents.send("state", snapshot());
+    if (!quitting && ui?.webContents && !ui.webContents.isDestroyed())
+      ui.webContents.send("state", snapshot());
   }, 25);
 }
 function log(message: string) {
@@ -157,7 +166,40 @@ async function main() {
     const cmd = commandSchema.parse(raw),
       c = store.config;
     switch (cmd.type) {
+      case "saveGroup":
+        saveGroup(c, randomUUID());
+        break;
+      case "activateGroup": {
+        const members = c.groups.find((g) => g.id === cmd.id);
+        if (!members) throw Error("Gruppe fehlt");
+        for (const id of groupIds(members.layout)) {
+          const s = c.services.find((s) => s.id === id);
+          if (!s || !validUrl(s.url, s.allowHttp))
+            throw Error("Ein Dienst der Gruppe hat keine gültige URL.");
+        }
+        for (const id of activateGroup(c, cmd.id)) {
+          const s = c.services.find((s) => s.id === id)!;
+          if (!s.running) views.start(s);
+        }
+        break;
+      }
+      case "deleteGroup":
+        deleteGroup(c, cmd.id);
+        break;
+      case "solo": {
+        const s = c.services.find((s) => s.id === cmd.id);
+        if (!s) throw Error("Dienst fehlt");
+        if (!s.running) views.start(s);
+        c.count = 1;
+        c.layouts[1] = {
+          ratios: [1],
+          columns: [{ services: [s.id], active: s.id }],
+        };
+        c.activeGroup = null;
+        break;
+      }
       case "layout":
+        c.activeGroup = null;
         changeLayout(c, cmd.count);
         break;
       case "ratios":
@@ -238,6 +280,8 @@ async function main() {
           if (r.response !== 1) break;
           await views.stop(s);
           c.services = c.services.filter((x) => x.id !== s.id);
+          for (const g of [...c.groups])
+            if (groupIds(g.layout).includes(s.id)) deleteGroup(c, g.id);
           for (const l of Object.values(c.layouts))
             for (const col of l.columns) {
               col.services = col.services.filter((id) => id !== s.id);
@@ -387,7 +431,16 @@ else {
   });
   app
     .whenReady()
-    .then(main)
+    .then(async () => {
+      if (!process.env.MULTIDOCK_TEST_DATA) {
+        try {
+          await components.whenReady();
+        } catch {
+          log("Widevine-Komponenten konnten nicht geladen werden.");
+        }
+      }
+      await main();
+    })
     .catch((e) => {
       dialog.showErrorBox("IndigoDock konnte nicht starten", String(e));
       app.exit(1);
@@ -404,20 +457,25 @@ else {
       const profiles = [
         ...new Set(store.config.services.map((s) => s.profile)),
       ];
-      void views.close().then(() => Promise.allSettled(
-        profiles.map(async (profile) => {
-          const ses = session.fromPartition("persist:multidock-" + profile);
-          ses.flushStorageData();
-          await ses.cookies.flushStore();
-        }),
-      )).then((results) => {
-        if (results.some((r) => r.status === "rejected"))
-          log(
-            "Session konnte beim Beenden nicht vollständig geschrieben werden.",
-          );
-        sessionsSaved = true;
-        app.quit();
-      });
+      void views
+        .close()
+        .then(() =>
+          Promise.allSettled(
+            profiles.map(async (profile) => {
+              const ses = session.fromPartition("persist:multidock-" + profile);
+              ses.flushStorageData();
+              await ses.cookies.flushStore();
+            }),
+          ),
+        )
+        .then((results) => {
+          if (results.some((r) => r.status === "rejected"))
+            log(
+              "Session konnte beim Beenden nicht vollständig geschrieben werden.",
+            );
+          sessionsSaved = true;
+          app.quit();
+        });
       return;
     }
     if (store) {
@@ -431,5 +489,3 @@ else {
   });
   app.on("window-all-closed", () => app.quit());
 }
-
-

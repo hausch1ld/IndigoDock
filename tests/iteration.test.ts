@@ -81,7 +81,7 @@ test("renaming uses legacy data directory and respects isolated tests", () => {
   );
   assert.equal(persistentDataPath("ignored", "test-profile"), "test-profile");
 });
-test("Discord browser path retains actual Chromium and does not affect identity providers or Spotify", () => {
+test("Browser compatibility retains actual Chromium and does not affect identity providers", () => {
   const ua =
     "Mozilla/5.0 Chrome/156.0.0.0 Electron/45.3.2 IndigoDock/1.1.0 Safari/537.36";
   assert.equal(
@@ -91,8 +91,8 @@ test("Discord browser path retains actual Chromium and does not affect identity 
   for (const url of [
     "https://accounts.google.com",
     "https://appleid.apple.com",
-    "https://open.spotify.com",
     "https://discord.com.evil.test",
   ])
     assert.equal(serviceUserAgent(ua, url), ua);
+  assert.equal(serviceUserAgent(ua, 'https://open.spotify.com'), serviceUserAgent(ua, 'https://discord.com/app'));
 });

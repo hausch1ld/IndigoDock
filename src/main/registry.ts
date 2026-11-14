@@ -16,6 +16,8 @@ export const definitions = [
 export function defaults(): Config {
   return {
     version: 1,
+    groups: [],
+    activeGroup: null,
     services: definitions.map(([id, name, url]) =>
       serviceSchema.parse({
         id,

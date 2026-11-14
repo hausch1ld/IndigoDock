@@ -13,3 +13,22 @@ export function serviceUserAgent(original: string, url: string) {
     .replace(/\sElectron\/\S+/g, "")
     .replace(/\s(?:MultiDock|multidock|IndigoDock|indigodock)\/\S+/g, "");
 }
+
+// Authentication routes are transient, not a useful workspace to restore.
+export function serviceStartUrl(configured: string, restored: string) {
+  try {
+    const base = new URL(configured);
+    const saved = new URL(restored);
+    if (
+      base.hostname === "discord.com" &&
+      (saved.origin !== base.origin ||
+        !/^\/channels(?:\/|$)/.test(saved.pathname))
+    ) {
+      return configured;
+    }
+    return restored;
+  } catch {
+    return configured;
+  }
+}
+

@@ -10,7 +10,7 @@ import type { Config, Service, Status } from "../shared/model";
 import { validUrl, origin, restoreUrl } from "../shared/security";
 import { PermissionManager } from "./permissions";
 import { MediaController } from "./media";
-import { serviceUserAgent } from "../shared/compatibility";
+import { serviceUserAgent, serviceStartUrl } from "../shared/compatibility";
 export class ViewManager {
   views = new Map<string, WebContentsView>();
   status: Record<string, Status> = {};
@@ -166,7 +166,10 @@ export class ViewManager {
         this.status[s.id].audible = wc.isCurrentlyAudible();
       this.changed();
     });
-    const target = validUrl(s.currentUrl, s.allowHttp) ? s.currentUrl : s.url;
+    const target = serviceStartUrl(
+      s.url,
+      validUrl(s.currentUrl, s.allowHttp) ? s.currentUrl : s.url,
+    );
     setAgent(target);
     void wc.loadURL(target).catch(() => {});
     this.layout();
@@ -175,6 +178,14 @@ export class ViewManager {
   stop(s: Service) {
     const v = this.views.get(s.id);
     if (v) {
+      v.webContents.session.flushStorageData();
+      void v.webContents.session.cookies
+        .flushStore()
+        .catch(() =>
+          this.log(
+            "Session konnte beim Stoppen nicht vollständig geschrieben werden.",
+          ),
+        );
       this.window.contentView.removeChildView(v);
       this.views.delete(s.id);
       v.webContents.close({ waitForBeforeUnload: false });
@@ -232,3 +243,4 @@ export class ViewManager {
     this.views.clear();
   }
 }
+

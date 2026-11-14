@@ -49,7 +49,7 @@ function changed() {
   store.schedule();
   clearTimeout(notifyTimer);
   notifyTimer = setTimeout(() => {
-    if (!ui.webContents.isDestroyed()) ui.webContents.send("state", snapshot());
+    if (!quitting && ui?.webContents && !ui.webContents.isDestroyed()) ui.webContents.send("state", snapshot());
   }, 25);
 }
 function log(message: string) {
@@ -389,8 +389,34 @@ else {
       dialog.showErrorBox("IndigoDock konnte nicht starten", String(e));
       app.exit(1);
     });
-  app.on("before-quit", () => {
+  let sessionsSaved = false;
+  let savingSessions = false;
+  app.on("before-quit", (event) => {
     quitting = true;
+    clearTimeout(notifyTimer);
+    if (store && !sessionsSaved) {
+      event.preventDefault();
+      if (savingSessions) return;
+      savingSessions = true;
+      const profiles = [
+        ...new Set(store.config.services.map((s) => s.profile)),
+      ];
+      void Promise.allSettled(
+        profiles.map(async (profile) => {
+          const ses = session.fromPartition("persist:multidock-" + profile);
+          ses.flushStorageData();
+          await ses.cookies.flushStore();
+        }),
+      ).then((results) => {
+        if (results.some((r) => r.status === "rejected"))
+          log(
+            "Session konnte beim Beenden nicht vollständig geschrieben werden.",
+          );
+        sessionsSaved = true;
+        app.quit();
+      });
+      return;
+    }
     if (store) {
       saveWindow();
       try {
@@ -402,3 +428,4 @@ else {
   });
   app.on("window-all-closed", () => app.quit());
 }
+

@@ -6,6 +6,7 @@ export const widgetSchema = z.enum([
   "performance",
   "mixer",
   "notes",
+  "calendar",
 ]);
 export const serviceSchema = z.object({
   id: z.string().regex(/^[a-zA-Z0-9_-]{1,64}$/),
@@ -13,7 +14,7 @@ export const serviceSchema = z.object({
   kind: z.enum(["web", "widgets"]).default("web"),
   widgets: z
     .array(widgetSchema)
-    .max(5)
+    .max(6)
     .default(["clock", "spotify", "performance", "mixer"]),
   url: z.string().max(2048),
   hiddenElements: z
@@ -79,16 +80,25 @@ export const settingsSchema = z.object({
   hideInactive: z.boolean().default(false),
 });
 export const sidebarSchema = z.object({
+  calendarVersion: z.literal(1).default(1),
   open: z.boolean().default(false),
   background: z
     .string()
     .regex(/^#[0-9a-fA-F]{6}$/)
     .default("#141a20"),
+  widgetBackground: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .default("#1d2730"),
+  textColor: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .default("#e4ebf0"),
   notes: z.string().max(20000).default(""),
   widgets: z
     .array(widgetSchema)
-    .max(5)
-    .default(["clock", "spotify", "performance", "mixer", "notes"]),
+    .max(6)
+    .default(["clock", "spotify", "performance", "mixer", "notes", "calendar"]),
 });
 export const configSchema = z.object({
   version: z.literal(1),
@@ -148,15 +158,30 @@ const id = z.string().max(64);
 export const commandSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("addKnown"), id }),
   z.object({ type: z.literal("catalog"), action: z.enum(["open", "reload"]) }),
-  z.object({ type: z.literal("sidebar"), patch: z.object({
-    open: sidebarSchema.shape.open.unwrap().optional(),
-    background: sidebarSchema.shape.background.unwrap().optional(),
-    notes: sidebarSchema.shape.notes.unwrap().optional(),
-    widgets: sidebarSchema.shape.widgets.unwrap().optional(),
-  }) }),
+  z.object({
+    type: z.literal("sidebar"),
+    patch: z.object({
+      open: sidebarSchema.shape.open.unwrap().optional(),
+      background: sidebarSchema.shape.background.unwrap().optional(),
+      widgetBackground: sidebarSchema.shape.widgetBackground
+        .unwrap()
+        .optional(),
+      textColor: sidebarSchema.shape.textColor.unwrap().optional(),
+      notes: sidebarSchema.shape.notes.unwrap().optional(),
+      widgets: sidebarSchema.shape.widgets.unwrap().optional(),
+    }),
+  }),
   z.object({
     type: z.literal("spotifyControl"),
-    action: z.enum(["toggle", "next", "previous", "volume"]),
+    action: z.enum([
+      "toggle",
+      "next",
+      "previous",
+      "volume",
+      "mute",
+      "shuffle",
+      "repeat",
+    ]),
     value: z.number().min(0).max(1).optional(),
   }),
   z.object({
@@ -230,6 +255,9 @@ export type WidgetData = {
     paused: boolean;
     volume: number;
     available: boolean;
+    shuffle?: boolean;
+    repeat?: boolean;
+    repeatOne?: boolean;
   };
 };
 export type Bridge = {

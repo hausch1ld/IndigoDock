@@ -1,5 +1,16 @@
+import { CalendarWidget } from "./calendar";
 import React, { useState, useEffect, useRef } from "react";
-import { Palette, SkipBack, SkipForward, Play, Pause } from "lucide-react";
+import {
+  Shuffle,
+  Repeat,
+  Repeat1,
+  Volume2,
+  VolumeX,
+  SkipBack,
+  SkipForward,
+  Play,
+  Pause,
+} from "lucide-react";
 import type { Bridge, Command, Config, WidgetData } from "../shared/model";
 import { insertAt } from "../shared/dock";
 function Slider({
@@ -81,9 +92,13 @@ export function WidgetBoard({
   }, []);
   const act = (c: Command) => {
     setError("");
-    void send(c).catch(() =>
-      setError("Aktion fehlgeschlagen. Dienst und Audioausgabe prüfen."),
-    );
+    void send(c)
+      .then(async () => {
+        if (c.type === "spotifyControl") setData(await api.widgets());
+      })
+      .catch(() =>
+        setError("Aktion fehlgeschlagen. Dienst und Audioausgabe prüfen."),
+      );
   };
   const names = {
     clock: "Uhr",
@@ -91,25 +106,23 @@ export function WidgetBoard({
     performance: "Systemauslastung",
     mixer: "Windows-Lautstärkemixer",
     notes: "Notizen",
+    calendar: "Kalender",
   };
   const sessions = [
     ...new Map((data?.mixer ?? []).map((s) => [s.pid, s])).values(),
   ];
   return (
-    <div className="widget-board" style={{ background: sidebar.background }}>
-      <header className="widget-toolbar">
-        <label className="palette-control" title="Hintergrundfarbe ändern">
-          <Palette size={17} />
-          <input
-            type="color"
-            aria-label="Sidebar-Hintergrundfarbe"
-            value={sidebar.background}
-            onChange={(e) =>
-              act({ type: "sidebar", patch: { background: e.target.value } })
-            }
-          />
-        </label>
-      </header>
+    <div
+      className="widget-board"
+      style={
+        {
+          background: sidebar.background,
+          color: sidebar.textColor,
+          "--widget-background": sidebar.widgetBackground,
+          "--widget-text": sidebar.textColor,
+        } as React.CSSProperties
+      }
+    >
       {error && <p role="status">{error}</p>}
       {sidebar.widgets.map((kind, index) => (
         <section
@@ -121,6 +134,7 @@ export function WidgetBoard({
               : "")
           }
           key={kind}
+          data-widget={kind}
           aria-label={names[kind]}
           tabIndex={0}
           draggable
@@ -186,6 +200,7 @@ export function WidgetBoard({
             setDrop(null);
           }}
         >
+          {kind === "calendar" && <CalendarWidget now={now} />}
           {kind === "notes" && (
             <textarea
               ref={notesField}
@@ -258,6 +273,17 @@ export function WidgetBoard({
               )}
               <div className="player-controls">
                 <button
+                  className="player-secondary"
+                  title="Shuffle"
+                  aria-pressed={!!data?.spotify?.shuffle}
+                  disabled={!data?.spotify}
+                  onClick={() =>
+                    act({ type: "spotifyControl", action: "shuffle" })
+                  }
+                >
+                  <Shuffle size={15} />
+                </button>
+                <button
                   title="Vorheriger Titel"
                   disabled={!data?.spotify}
                   onClick={() =>
@@ -267,13 +293,16 @@ export function WidgetBoard({
                   <SkipBack size={18} />
                 </button>
                 <button
-                  title="Wiedergabe / Pause"
+                  className="player-play"
+                  title={
+                    data?.spotify?.paused === false ? "Pause" : "Wiedergabe"
+                  }
                   disabled={!data?.spotify}
                   onClick={() =>
                     act({ type: "spotifyControl", action: "toggle" })
                   }
                 >
-                  {data?.spotify?.paused ? (
+                  {data?.spotify?.paused !== false ? (
                     <Play size={20} />
                   ) : (
                     <Pause size={20} />
@@ -288,10 +317,41 @@ export function WidgetBoard({
                 >
                   <SkipForward size={18} />
                 </button>
+                <button
+                  className="player-secondary"
+                  title="Wiederholen"
+                  aria-pressed={!!data?.spotify?.repeat}
+                  disabled={!data?.spotify}
+                  onClick={() =>
+                    act({ type: "spotifyControl", action: "repeat" })
+                  }
+                >
+                  {data?.spotify?.repeatOne ? (
+                    <Repeat1 size={15} />
+                  ) : (
+                    <Repeat size={15} />
+                  )}
+                </button>
               </div>
               {data?.spotify?.available && (
-                <label>
-                  Lautstärke
+                <div className="spotify-volume">
+                  <button
+                    title={
+                      data.spotify.volume > 0
+                        ? "Stummschalten"
+                        : "Stummschaltung aufheben"
+                    }
+                    aria-pressed={data.spotify.volume === 0}
+                    onClick={() =>
+                      act({ type: "spotifyControl", action: "mute" })
+                    }
+                  >
+                    {data.spotify.volume > 0 ? (
+                      <Volume2 size={18} />
+                    ) : (
+                      <VolumeX size={18} />
+                    )}
+                  </button>
                   <Slider
                     label="Spotify-Lautstärke"
                     value={data.spotify.volume}
@@ -299,7 +359,7 @@ export function WidgetBoard({
                       act({ type: "spotifyControl", action: "volume", value })
                     }
                   />
-                </label>
+                </div>
               )}
             </>
           )}

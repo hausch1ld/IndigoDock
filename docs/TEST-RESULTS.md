@@ -1,3 +1,17 @@
+# IndigoDock 1.5.2 · Lokaler Prüfstand 16.11.2026
+
+35 Logiktests und 29 native Windows-Prüfungen bestanden, einschließlich Prozessneustart. Kalender: Montag als Wochenbeginn, Schaltjahre, Monatswechsel und heutiger Tag geprüft. Sidebar-Schalter im Dock; Titelleistenuhr nur bei geschlossener Sidebar. Abstände und Kalenderansicht in der installierten App visuell geprüft.
+
+Spotify-Status berücksichtigt die Play/Pause-Schaltfläche vor ungenutzten Audioelementen; beide Zustände im DOM-Integrationstest geprüft. Live-Wechsel während laufender Wiedergabe noch nicht bestätigt. Bildschirmfreigabetest prüft in diesem Lauf Videoframes ohne Systemaudio; Loopback war auf dem Testhost nicht verfügbar.
+
+Produktionsbuild und EVS-Signatur erfolgreich. Installierte Version und lokale Startkopie ersetzt; app.asar-Hash mit Build identisch. Keine GitHub-Veröffentlichung.
+
+# IndigoDock 1.5.1 · Lokaler Prüfstand 16.11.2026
+
+33 Logiktests und 27 native Windows-Prüfungen bestanden. Neue Prüfungen bestätigen Widget-Auswahl, eigene Widget-/Schriftfarben, zentrierte Uhr und Entfernung des Palettensymbols. Der neue Sidebar-Reiter nutzt denselben festen Dialog-Footer. Produktionsbuild erfolgreich.
+
+Spotify: Shuffle und Repeat bedienen die Webplayer-Schaltflächen. Stummschaltung nutzt den Player-Button mit Regler-Fallback und Wiederherstellung der vorherigen Lautstärke. Lautstärkeregler ohne seitliches Eingabefeld-Padding. Live-Prüfung nach Installation.
+
 # IndigoDock 1.5.0 · Prüfstand 16.11.2026
 
 - TypeScript und Produktionsbuild bestanden; 33 Logiktests bestanden.

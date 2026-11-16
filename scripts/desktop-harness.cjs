@@ -13,7 +13,7 @@ const path = require("node:path");
 const http = require("node:http");
 const assert = require("node:assert/strict");
 const project = fs.readFileSync(path.join(__dirname, "project.txt"), "utf8");
-const results = path.join(project, "test-results", "build-1.5-sidebar-d");
+const results = path.join(project, "test-results", "build-1.5.2-sidebar-c");
 fs.mkdirSync(results, { recursive: true });
 const stageFile = path.join(results, "desktop-stage.json");
 const stage = fs.existsSync(stageFile)
@@ -439,7 +439,13 @@ app.whenReady().then(async () => {
     await until(async () => (await state()).config.services[0].id === "steam");
     pass("settings drag sorting persists order");
     const dimensions = [];
-    for (const tab of ["Allgemein", "Layout", "Dienste", "Erweitert"]) {
+    for (const tab of [
+      "Allgemein",
+      "Layout",
+      "Dienste",
+      "Sidebar",
+      "Erweitert",
+    ]) {
       await ui.executeJavaScript(
         `[...document.querySelectorAll('.settings-tabs button')].find(b=>b.textContent===${JSON.stringify(tab)}).click()`,
       );
@@ -673,15 +679,59 @@ app.whenReady().then(async () => {
     );
     pass("picker restore clears all rules and drag handle is available");
 
-    const adapterScript = require(path.join(project, "node_modules/esbuild")).transformSync(fs.readFileSync(path.join(project, "src/main/spotify-adapter.ts"), "utf8"), { loader: "ts", format: "iife", globalName: "SpotifyTest" }).code;
-    await fixture.executeJavaScript(`(()=>{const slider=document.createElement('input');slider.type='range';slider.min='0';slider.max='100';slider.value='80';slider.dataset.testid='volume-bar';slider.addEventListener('input',()=>document.body.dataset.volume=slider.value);document.body.append(slider)})()`);
-    const volumeResult = await fixture.executeJavaScriptInIsolatedWorld(1002, [{code: adapterScript + ';SpotifyTest.spotifyAdapter("volume", 0.37)'}]);
+    const adapterScript = require(
+      path.join(project, "node_modules/esbuild"),
+    ).transformSync(
+      fs.readFileSync(
+        path.join(project, "src/main/spotify-adapter.ts"),
+        "utf8",
+      ),
+      { loader: "ts", format: "iife", globalName: "SpotifyTest" },
+    ).code;
+    await fixture.executeJavaScript(
+      `(()=>{const slider=document.createElement('input');slider.type='range';slider.min='0';slider.max='100';slider.value='80';slider.dataset.testid='volume-bar';slider.addEventListener('input',()=>document.body.dataset.volume=slider.value);document.body.append(slider)})()`,
+    );
+    const volumeResult = await fixture.executeJavaScriptInIsolatedWorld(1002, [
+      { code: adapterScript + ';SpotifyTest.spotifyAdapter("volume", 0.37)' },
+    ]);
     assert.equal(volumeResult, true);
-    assert.equal(await fixture.executeJavaScript('document.body.dataset.volume'), '37');
-    const volumeRead = await fixture.executeJavaScriptInIsolatedWorld(1002, [{code: 'SpotifyTest.spotifyAdapter()'}]);
+    assert.equal(
+      await fixture.executeJavaScript("document.body.dataset.volume"),
+      "37",
+    );
+    const volumeRead = await fixture.executeJavaScriptInIsolatedWorld(1002, [
+      { code: "SpotifyTest.spotifyAdapter()" },
+    ]);
     assert.equal(volumeRead.volume, 0.37);
-    pass("Spotify volume adapter updates actual slider state across isolated worlds and reads it back");
+    pass(
+      "Spotify volume adapter updates actual slider state across isolated worlds and reads it back",
+    );
 
+    await fixture.executeJavaScript(
+      `(()=>{const media=document.createElement('audio');document.body.append(media);const b=document.createElement('button');b.dataset.testid='control-button-playpause';b.setAttribute('aria-label','Pause');document.body.append(b)})()`,
+    );
+    assert.equal(
+      (
+        await fixture.executeJavaScriptInIsolatedWorld(1002, [
+          { code: "SpotifyTest.spotifyAdapter()" },
+        ])
+      ).paused,
+      false,
+    );
+    await fixture.executeJavaScript(
+      `document.querySelector('[data-testid="control-button-playpause"]').setAttribute('aria-label','Wiedergabe')`,
+    );
+    assert.equal(
+      (
+        await fixture.executeJavaScriptInIsolatedWorld(1002, [
+          { code: "SpotifyTest.spotifyAdapter()" },
+        ])
+      ).paused,
+      true,
+    );
+    pass(
+      "Spotify player state takes precedence over unused paused media elements",
+    );
     const captureWindow = new BrowserWindow({
       width: 400,
       height: 300,
@@ -704,7 +754,7 @@ app.whenReady().then(async () => {
     };
     try {
       const capture = await fixture.executeJavaScript(
-        `(async()=>{let stream,reader;try{stream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:true});const track=stream.getVideoTracks()[0];const processor=new MediaStreamTrackProcessor({track});reader=processor.readable.getReader();const {value:frame}=await Promise.race([reader.read(),new Promise((_,reject)=>setTimeout(()=>reject(Error('No frame')),12000))]);const result={width:frame.displayWidth,height:frame.displayHeight,state:track.readyState};frame.close();return result;}catch(e){return {error:e.name+': '+e.message}}finally{reader?.cancel();stream?.getTracks().forEach(t=>t.stop())}})()`,
+        `(async()=>{let stream,reader;try{stream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:false});const track=stream.getVideoTracks()[0];const processor=new MediaStreamTrackProcessor({track});reader=processor.readable.getReader();const {value:frame}=await Promise.race([reader.read(),new Promise((_,reject)=>setTimeout(()=>reject(Error('No frame')),12000))]);const result={width:frame.displayWidth,height:frame.displayHeight,state:track.readyState};frame.close();return result;}catch(e){return {error:e.name+': '+e.message}}finally{reader?.cancel();stream?.getTracks().forEach(t=>t.stop())}})()`,
         true,
       );
       assert.ok(capture.width > 0, JSON.stringify(capture));
@@ -730,13 +780,63 @@ app.whenReady().then(async () => {
       await ui.executeJavaScript(
         'document.querySelectorAll(".widget-card").length',
       ),
-      5,
+      6,
     );
     assert.equal(
       await ui.executeJavaScript(
         'document.querySelectorAll(".widget-card h3, .widget-board h2").length',
       ),
       0,
+    );
+    const calendarMonth = await ui.executeJavaScript(
+      'document.querySelector(".calendar-heading strong").textContent',
+    );
+    await ui.executeJavaScript(
+      'document.querySelector(".calendar-heading button:last-child").click()',
+    );
+    await until(
+      async () =>
+        (await ui.executeJavaScript(
+          'document.querySelector(".calendar-heading strong").textContent',
+        )) !== calendarMonth,
+    );
+    await ui.executeJavaScript(
+      'document.querySelector(".calendar-heading button:first-child").click()',
+    );
+    await until(
+      async () =>
+        (await ui.executeJavaScript(
+          'document.querySelector(".calendar-heading strong").textContent',
+        )) === calendarMonth,
+    );
+    assert.equal(
+      await ui.executeJavaScript(
+        'document.querySelectorAll(".calendar-today").length',
+      ),
+      1,
+    );
+    assert.equal(
+      await ui.executeJavaScript(
+        '!!document.querySelector(".titlebar-clock time")',
+      ),
+      false,
+    );
+    assert.equal(
+      await ui.executeJavaScript(
+        '!!document.querySelector(".dock-right .sidebar-trigger")',
+      ),
+      true,
+    );
+    await cmd({ type: "sidebar", patch: { open: false } });
+    await until(() =>
+      ui.executeJavaScript('!!document.querySelector(".titlebar-clock time")'),
+    );
+    await cmd({ type: "sidebar", patch: { open: true } });
+    await until(() =>
+      ui.executeJavaScript('!!document.querySelector(".calendar-widget")'),
+    );
+    pass(
+      "calendar month navigation and today; dock sidebar switch and conditional titlebar clock",
     );
     await cmd({
       type: "sidebar",
@@ -771,6 +871,50 @@ app.whenReady().then(async () => {
     );
     pass(
       "persistent sidebar excludes native views for all dock positions; five widgets, notes, palette and ordering",
+    );
+    assert.equal(
+      await ui.executeJavaScript(
+        'document.querySelectorAll(".palette-control").length',
+      ),
+      0,
+    );
+    await cmd({
+      type: "sidebar",
+      patch: {
+        widgetBackground: "#302010",
+        textColor: "#ffddaa",
+        widgets: ["clock", "notes"],
+      },
+    });
+    await until(() =>
+      ui.executeJavaScript(
+        'document.querySelectorAll(".widget-card").length===2',
+      ),
+    );
+    assert.equal(
+      await ui.executeJavaScript(
+        'getComputedStyle(document.querySelector(".widget-card")).backgroundColor',
+      ),
+      "rgb(48, 32, 16)",
+    );
+    assert.equal(
+      await ui.executeJavaScript(
+        'getComputedStyle(document.querySelector(".widget-card")).color',
+      ),
+      "rgb(255, 221, 170)",
+    );
+    assert.equal(
+      await ui.executeJavaScript(
+        'getComputedStyle(document.querySelector(".clock-widget")).alignItems',
+      ),
+      "center",
+    );
+    await cmd({
+      type: "sidebar",
+      patch: { widgets: ["mixer", "clock", "spotify", "performance", "notes"] },
+    });
+    pass(
+      "widget selection and custom card/text colors apply; clock centered; palette removed",
     );
     const metrics = await ui.executeJavaScript("window.multidock.widgets()");
     assert.ok(metrics.cpu >= 0 && metrics.cpu <= 100);

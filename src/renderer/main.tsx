@@ -328,6 +328,7 @@ function App() {
           <img className="app-logo" src="./icons/indigodock.png" alt="" />
           IndigoDock
         </div>
+        <div className="titlebar-clock">{!c.sidebar.open && <Clock />}</div>
         <div className="window-actions">
           <button
             title="Einstellungen"
@@ -337,20 +338,6 @@ function App() {
             }}
           >
             <Settings size={15} />
-          </button>
-          <button
-            title={c.sidebar.open ? "Sidebar einklappen" : "Sidebar ausklappen"}
-            aria-pressed={c.sidebar.open}
-            onClick={() => {
-              close();
-              void send({ type: "sidebar", patch: { open: !c.sidebar.open } });
-            }}
-          >
-            {c.sidebar.open ? (
-              <PanelRightClose size={17} />
-            ) : (
-              <PanelRightOpen size={17} />
-            )}
           </button>
           <button
             title="Minimieren"
@@ -633,7 +620,21 @@ function App() {
           )}
         </nav>
         <div className="dock-right">
-          <Clock />
+          <button
+            className="sidebar-trigger"
+            title={c.sidebar.open ? "Sidebar einklappen" : "Sidebar ausklappen"}
+            aria-pressed={c.sidebar.open}
+            onClick={() => {
+              close();
+              void send({ type: "sidebar", patch: { open: !c.sidebar.open } });
+            }}
+          >
+            {c.sidebar.open ? (
+              <PanelRightClose size={20} />
+            ) : (
+              <PanelRightOpen size={20} />
+            )}
+          </button>
         </div>
       </footer>
       {(panel || context || edit || groupContext) && (
@@ -1208,6 +1209,12 @@ function SettingsDialog({
 }) {
   const [tab, setTab] = useState("Allgemein"),
     [settings, setSettings] = useState({ ...state.config.settings });
+  const [sidebar, setSidebar] = useState({
+    background: state.config.sidebar.background,
+    widgetBackground: state.config.sidebar.widgetBackground,
+    textColor: state.config.sidebar.textColor,
+    widgets: [...state.config.sidebar.widgets],
+  });
   const [sortId, setSortId] = useState<string | null>(null);
   const [dropAt, setDropAt] = useState<number | null>(null);
   const fields = {
@@ -1240,7 +1247,7 @@ function SettingsDialog({
         </button>
       </div>
       <div className="settings-tabs">
-        {["Allgemein", "Layout", "Dienste", "Erweitert"].map((t) => (
+        {["Allgemein", "Layout", "Dienste", "Sidebar", "Erweitert"].map((t) => (
           <button
             key={t}
             className={tab === t ? "selected" : ""}
@@ -1417,6 +1424,58 @@ function SettingsDialog({
             ))}
           </div>
         )}
+        {tab === "Sidebar" && (
+          <div className="sidebar-settings">
+            <h3>Aussehen</h3>
+            {(
+              [
+                ["background", "Hintergrund der Sidebar"],
+                ["widgetBackground", "Hintergrund der Widgets"],
+                ["textColor", "Schriftfarbe"],
+              ] as const
+            ).map(([key, label]) => (
+              <label className="setting-row" key={key}>
+                {label}
+                <input
+                  type="color"
+                  aria-label={label}
+                  value={sidebar[key]}
+                  onChange={(e) =>
+                    setSidebar({ ...sidebar, [key]: e.target.value })
+                  }
+                />
+              </label>
+            ))}
+            <h3>Widgets</h3>
+            {(
+              [
+                ["clock", "Uhr und Datum"],
+                ["spotify", "Spotify"],
+                ["performance", "Systemauslastung"],
+                ["mixer", "Windows-Lautstärkemixer"],
+                ["notes", "Notizen"],
+                ["calendar", "Kalender"],
+              ] as const
+            ).map(([id, label]) => (
+              <label className="setting-row" key={id}>
+                {label}
+                <input
+                  type="checkbox"
+                  aria-label={label}
+                  checked={sidebar.widgets.includes(id)}
+                  onChange={(e) =>
+                    setSidebar({
+                      ...sidebar,
+                      widgets: e.target.checked
+                        ? [...sidebar.widgets, id]
+                        : sidebar.widgets.filter((w) => w !== id),
+                    })
+                  }
+                />
+              </label>
+            ))}
+          </div>
+        )}
         {tab === "Erweitert" && (
           <>
             <p>IndigoDock {state.version}</p>
@@ -1489,6 +1548,7 @@ function SettingsDialog({
           className="primary"
           onClick={() =>
             void send({ type: "settings", settings })
+              .then(() => send({ type: "sidebar", patch: sidebar }))
               .then(onClose)
               .catch(() => {})
           }

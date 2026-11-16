@@ -115,6 +115,17 @@ Der Windows-Audiohelfer wird aus `native/AudioMixer.cs` beim Build mit dem in Wi
 
 ## Neu in 1.5.0
 
-Die Widget-Sidebar wird über das Symbol zwischen Einstellungen und Minimieren ein- oder ausgeklappt. Sie bleibt unabhängig vom Workspace-Layout. Alte Widget-Dienste werden automatisch aus Gruppen herausgelöst. Widgets lassen sich auf ihrer Fläche verschieben; Eingabefelder und Regler bleiben bedienbar. Das Palettensymbol ändert die Hintergrundfarbe. Ein Notizenfeld speichert mehrzeiligen Text lokal.
+Die Widget-Sidebar bleibt unabhängig vom Workspace-Layout. Alte Widget-Dienste werden automatisch aus Gruppen herausgelöst. Widgets lassen sich auf ihrer Fläche verschieben; Eingabefelder und Regler bleiben bedienbar. Ein Notizenfeld speichert mehrzeiligen Text lokal.
+
+## Neu in 1.5.2 (einschließlich 1.5.1)
+
+- Sidebar-Schalter rechts im Dock im Stil des Layout-Schalters. Bei geschlossener Sidebar erscheint die Uhr mittig in der Titelleiste.
+- Kalenderwidget mit Monatsansicht, Montag als Wochenbeginn, hervorgehobenem heutigen Datum und Navigation zwischen Monaten.
+- Ausgeglichene Abstände bei Uhr/Datum und Spotify-Steuerung; korrigierte Play/Pause-Erkennung.
+- Spotify: kleinere Shuffle-/Repeat-Tasten, Stummschaltung mit Lautstärke-Wiederherstellung und korrigierter Lautstärkeregler.
+- Einstellungen → Sidebar: Widgets hinzufügen/entfernen sowie Sidebar-, Widget- und Schriftfarbe anpassen.
+- 35 Logiktests und 29 native Windows-Prüfungen bestanden. Der Live-Wechsel der Spotify-Anzeige während laufender Musik ist noch nicht bestätigt.
+
+Das Windows-x64-ZIP im Release enthält den lokal mit Castlabs EVS signierten Build. Vollständig entpacken und `IndigoDock.exe` starten. Bestehende Profildaten bleiben unter `%APPDATA%\\multidock`. Dieses ZIP wird manuell aktualisiert; es ist kein NSIS-Installer und kein automatisches In-App-Update. Eine Windows-Herausgebersignatur ist nicht enthalten. Das Wetterwidget ist bislang nur auf Machbarkeit geprüft.
 
 Die Einstellungen sind schmaler und haben einen festen Footer. **Dienst hinzufügen** öffnet die bekannten Dienste mit Logos; **Benutzerdefinierter Dienst** steht zuerst. Datum im Dock ohne Jahreszahl, runde Musiksteuerung, UTF-8 für den Windows-Mixer und verbesserte WhatsApp-Browsererkennung.

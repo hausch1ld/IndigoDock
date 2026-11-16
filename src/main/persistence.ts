@@ -19,6 +19,12 @@ export class Store {
       try {
         const raw = JSON.parse(fs.readFileSync(file, "utf8"));
         const config = migrateSidebar(configSchema.parse(raw), !!raw.sidebar);
+        if (
+          raw.sidebar &&
+          raw.sidebar.calendarVersion !== 1 &&
+          !config.sidebar.widgets.includes("calendar")
+        )
+          config.sidebar.widgets.push("calendar");
         const ids = new Set(config.services.map((s) => s.id));
         if (ids.size !== config.services.length) throw Error("Doppelte IDs");
         for (const [key, l] of Object.entries(config.layouts)) {

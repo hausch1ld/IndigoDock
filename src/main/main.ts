@@ -1,3 +1,5 @@
+import { Widgets } from "./widgets";
+import { Catalog } from "./catalog";
 import {
   app,
   BaseWindow,
@@ -42,10 +44,14 @@ let win: BaseWindow,
   tray: Tray,
   quitting = false;
 let updates: UpdateManager;
+let catalog: Catalog;
+let widgets: Widgets;
 const uiURL = pathToFileURL(path.join(__dirname, "ui/index.html")).href;
 function snapshot(): Snapshot {
   return {
     config: store.config,
+    catalog: catalog?.services,
+    catalogError: catalog?.error,
     status: views.status,
     version: app.getVersion(),
     update: updates?.state,
@@ -153,10 +159,17 @@ async function main() {
       sandbox: true,
     },
   });
+  ui.setBackgroundColor("#00000000");
   win.contentView.addChildView(ui);
   ui.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   ui.webContents.on("will-navigate", (e) => e.preventDefault());
-  views = new ViewManager(win, () => store.config, changed, log);
+  views = new ViewManager(win, () => store.config, changed, log, ui);
+  widgets = new Widgets(views);
+  ipcMain.handle("widgets", (e) => {
+    trusted(e);
+    return widgets.read();
+  });
+  catalog = new Catalog(store.dir);
   ipcMain.handle("snapshot", (e) => {
     trusted(e);
     return snapshot();
@@ -166,6 +179,36 @@ async function main() {
     const cmd = commandSchema.parse(raw),
       c = store.config;
     switch (cmd.type) {
+      case "spotifyControl":
+        await widgets.control(cmd.action, cmd.value);
+        break;
+      case "mixerVolume":
+        await widgets.volume(cmd.pid, cmd.value);
+        break;
+      case "addKnown": {
+        catalog.reload();
+        const template = catalog.services.find((s) => s.id === cmd.id);
+        if (!template) throw Error("Dienst fehlt im Katalog.");
+        if (c.services.some((s) => s.id === template.id))
+          throw Error("Dienst bereits vorhanden.");
+        if (c.services.length >= 100) throw Error("Maximal 100 Dienste.");
+        c.services.push({
+          ...structuredClone(template),
+          running: false,
+          currentUrl: "",
+          hiddenElements: [],
+        });
+        break;
+      }
+      case "catalog":
+        catalog.reload();
+        if (cmd.action === "open") await shell.openPath(catalog.file);
+        break;
+      case "sidebar":
+        Object.assign(c.sidebar, cmd.patch);
+        c.sidebar.widgets = [...new Set(c.sidebar.widgets)];
+        break;
+
       case "saveGroup":
         saveGroup(c, randomUUID());
         break;
@@ -174,7 +217,7 @@ async function main() {
         if (!members) throw Error("Gruppe fehlt");
         for (const id of groupIds(members.layout)) {
           const s = c.services.find((s) => s.id === id);
-          if (!s || !validUrl(s.url, s.allowHttp))
+          if (!s || (s.kind !== "widgets" && !validUrl(s.url, s.allowHttp)))
             throw Error("Ein Dienst der Gruppe hat keine gültige URL.");
         }
         for (const id of activateGroup(c, cmd.id)) {
@@ -250,12 +293,27 @@ async function main() {
         const v = views.views.get(s.id);
         v?.webContents.setAudioMuted(s.muted);
         v?.webContents.setZoomFactor(s.zoom);
+        await views.applyHidden(old ?? s);
         break;
       }
       case "service": {
         const s = c.services.find((s) => s.id === cmd.id);
         if (!s) throw Error("Dienst fehlt");
         const wc = views.views.get(s.id)?.webContents;
+        if (cmd.action === "hideElement") {
+          if (!s.running) throw Error("Dienst zuerst starten.");
+          if (!c.layouts[c.count].columns.some((col) => col.active === s.id)) {
+            c.count = 1;
+            c.layouts[1] = {
+              ratios: [1],
+              columns: [{ services: [s.id], active: s.id }],
+            };
+            c.activeGroup = null;
+          }
+          views.layout();
+          changed();
+          await views.pickElement(s);
+        }
         if (cmd.action === "start") views.start(s);
         if (cmd.action === "stop") await views.stop(s);
         if (cmd.action === "reload" && wc) wc.reload();

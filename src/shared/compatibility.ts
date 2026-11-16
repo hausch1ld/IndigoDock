@@ -8,7 +8,14 @@ export function serviceUserAgent(original: string, url: string) {
   } catch {
     return original;
   }
-  if (!["discord.com", "www.discord.com", "open.spotify.com"].includes(host))
+  if (
+    ![
+      "discord.com",
+      "www.discord.com",
+      "open.spotify.com",
+      "web.whatsapp.com",
+    ].includes(host)
+  )
     return original;
   return original
     .replace(/\sElectron\/\S+/g, "")

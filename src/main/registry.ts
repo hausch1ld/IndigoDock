@@ -1,4 +1,4 @@
-import { serviceSchema, type Config } from "../shared/model";
+import { serviceSchema, sidebarSchema, type Config } from "../shared/model";
 import { emptyLayout } from "../shared/layout";
 export const definitions = [
   ["discord", "Discord", "https://discord.com/app"],
@@ -16,6 +16,7 @@ export const definitions = [
 export function defaults(): Config {
   return {
     version: 1,
+    sidebar: sidebarSchema.parse({}),
     groups: [],
     activeGroup: null,
     services: definitions.map(([id, name, url]) =>
@@ -30,6 +31,7 @@ export function defaults(): Config {
     count: 1,
     layouts: { 1: emptyLayout(1) },
     settings: {
+      dockPosition: "bottom",
       autostart: false,
       startMinimized: false,
       minimizeToTray: false,

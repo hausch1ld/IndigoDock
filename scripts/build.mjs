@@ -1,3 +1,4 @@
+import "./build-native.mjs";
 import { build } from "esbuild";
 import { build as vite } from "vite";
 import { mkdir, copyFile } from "node:fs/promises";
@@ -22,3 +23,5 @@ await build({
 });
 await mkdir("dist/assets", { recursive: true });
 await copyFile("assets/icon.png", "dist/assets/icon.png");
+
+await copyFile("assets/AudioMixer.exe", "dist/assets/AudioMixer.exe");

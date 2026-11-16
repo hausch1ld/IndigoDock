@@ -31,7 +31,7 @@ Implementiert: BaseWindow, native Dienstansichten, typisierte und laufzeitvalidi
 
 **Nicht als vollständig verifiziert zu verstehen:** Anbieter-Logins, Discord Voice, Hardwaremedientasten, Bildschirmfreigabe mit echten Geräten, Spotify-DRM, gemischte DPI-Monitore und Windows-Autostart. Dafür existiert die [manuelle Testanleitung](docs/TESTING.md).
 
-Google kann eingebettete Anmeldungen blockieren. Spotify kann ohne passende Widevine-Integration keine geschützte Musik abspielen. IndigoDock verwendet ab 1.2.0 Castlabs Electron mit Widevine-Komponentenverwaltung. Die lokale Windows-Laufzeit ist mit EVS für Streaming signiert. Die tatsächliche Spotify-Wiedergabe ist noch manuell zu bestätigen. Browser-Cookies werden nicht kopiert. Der externe Browser ist ein eigenständiger Fallback; dessen Login wird **nicht** in IndigoDock übertragen. Einzelheiten und Quellen: [Kompatibilität](docs/COMPATIBILITY.md).
+Google kann eingebettete Anmeldungen blockieren. Spotify kann ohne passende Widevine-Integration keine geschützte Musik abspielen. IndigoDock verwendet ab 1.2.0 Castlabs Electron mit Widevine-Komponentenverwaltung. Die lokale Windows-Laufzeit ist mit EVS für Streaming signiert. Die Spotify-Wiedergabe wurde vom Benutzer bestätigt. Browser-Cookies werden nicht kopiert. Der externe Browser ist ein eigenständiger Fallback; dessen Login wird **nicht** in IndigoDock übertragen. Einzelheiten und Quellen: [Kompatibilität](docs/COMPATIBILITY.md).
 
 Medientasten laufen über Chromiums native Media-Session-/Windows-SMTC-Integration. IndigoDock installiert keine globalen Hooks und sendet keinen Tastendruck an mehrere Dienste. Eine eigene, deterministische „zuletzt aktiver Dienst“-Umschaltung wird nicht versprochen: Chromium und Windows bestimmen die aktive Sitzung. Die Lautstärketasten bleiben bei Windows.
 
@@ -88,9 +88,33 @@ Weitere Details: [Architektur](docs/ARCHITECTURE.md), [Testbericht](docs/TEST-RE
 
 Neues IndigoDock-Icon, entfernte Slogans, ausblendbare Spalten-Tabs, aktive Dienste gruppieren, inaktive Apps als Popup, Drag-and-drop-Reihenfolge in Leiste und Einstellungen. Meldungen erscheinen über Dienstansichten.
 
-Updates: Einstellungen → Erweitert → Auf Updates prüfen. Download und Installation werden ausdrücklich gestartet. GitHub Actions baut Windows-Installer und portable EXE; eine neue Paketversion erzeugt einen Release mit latest.yml. Bestehende Releases werden nicht überschrieben.
+Updates: Einstellungen → Erweitert → Auf Updates prüfen. Download und Installation werden ausdrücklich gestartet. GitHub Actions baut Windows-Installer und portable EXE als Artefakte. Öffentliche Releases und damit neue Auto-Updates bleiben bis zur Einrichtung der EVS-Signierung in CI deaktiviert.
 
 Die lokale Installation liegt unter %LOCALAPPDATA%\Programs\IndigoDock. Der Datenordner bleibt aus Kompatibilitätsgründen %APPDATA%\multidock; bestehende Session-Partitionen bleiben gleich. Updates löschen ihn nicht. Anbieter können trotzdem erneute Anmeldung verlangen.
 
-Spotify/Widevine ist zurückgestellt. Discord-Browserkompatibilität und Quellen-Auswahl sind implementiert; der Live-Bildschirmtest ist noch offen. Beim lokalen Start verlangten Discord und Steam eine erneute Anmeldung.
+Spotify verwendet die EVS-signierte Castlabs-Laufzeit. Die Bildschirmfreigabe wurde mit echten Videoframes eines lokalen Testfensters geprüft; die Übertragung an einen Discord-Teilnehmer muss separat bestätigt werden.
 
+
+## Neu in 1.4.0
+
+Unter Einstellungen → Layout lässt sich das Dock unten, oben, links oder rechts platzieren. Menüs erscheinen ohne Abdunklung und ohne Standbildwechsel. Layout-Gruppen speichern nur die sichtbaren Dienste.
+
+Rechtsklick auf ein Dienst-Icon → **Element ausblenden**. Ein Element anklicken, mit dem Slider den Elterncontainer wählen und ausblenden. **Wiederherstellen** entfernt alle Ausblendregeln dieses Dienstes. Die Kopfzeile des Auswahlfensters lässt sich ziehen. Einzelne Regeln können weiterhin in den Diensteinstellungen deaktiviert oder gelöscht werden. Regeln gelten für die jeweilige Website-Origin; Website-Umbauten können neue Auswahl erfordern. Fremde Iframes und geschlossene Shadow-DOMs werden nicht durchdrungen.
+
+Einstellungen → Dienste → **Dienst hinzufügen** öffnet die mitgelieferten Dienste mit Logos; **Benutzerdefinierter Dienst** steht oben. **Katalog bearbeiten** öffnet `%APPDATA%\multidock\known-services.json`. Ein Eintrag benötigt `id`, `name`, `url` und `profile`; optional `icon` und `allowHttp`. Nach Änderungen **Neu laden** wählen. IDs müssen eindeutig sein. Zum Beispiel:
+
+```json
+{"id":"example","name":"Example","url":"https://example.com","profile":"example"}
+```
+
+Die Widget-Sidebar enthält Uhr, Spotify-Titel/Cover/Steuerung/Lautstärke, CPU/RAM/NVIDIA-GPU-Auslastung, Windows-App-Lautstärken und Notizen. Spotify muss in IndigoDock gestartet sein. Der Widget-Adapter bedient den Webplayer und kann bei Änderungen an dessen Oberfläche eine Anpassung benötigen. Spielübergreifende FPS sind nicht enthalten.
+
+Der Windows-Audiohelfer wird aus `native/AudioMixer.cs` beim Build mit dem in Windows enthaltenen .NET-Framework-Compiler gebaut. Er verwendet die dokumentierte Core-Audio-Schnittstelle, läuft ohne Administratorrechte und wird aus dem ASAR-Archiv ausgepackt. GPU-Abfragen verwenden das mit dem NVIDIA-Treiber installierte `nvidia-smi`; fehlt es, zeigt das Widget keine GPU-Messung.
+
+
+
+## Neu in 1.5.0
+
+Die Widget-Sidebar wird über das Symbol zwischen Einstellungen und Minimieren ein- oder ausgeklappt. Sie bleibt unabhängig vom Workspace-Layout. Alte Widget-Dienste werden automatisch aus Gruppen herausgelöst. Widgets lassen sich auf ihrer Fläche verschieben; Eingabefelder und Regler bleiben bedienbar. Das Palettensymbol ändert die Hintergrundfarbe. Ein Notizenfeld speichert mehrzeiligen Text lokal.
+
+Die Einstellungen sind schmaler und haben einen festen Footer. **Dienst hinzufügen** öffnet die bekannten Dienste mit Logos; **Benutzerdefinierter Dienst** steht zuerst. Datum im Dock ohne Jahreszahl, runde Musiksteuerung, UTF-8 für den Windows-Mixer und verbesserte WhatsApp-Browsererkennung.

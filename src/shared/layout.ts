@@ -58,8 +58,15 @@ export function bounds(
   height: number,
   ratios: number[],
   showColumnTabs = true,
+  dockPosition: Config["settings"]["dockPosition"] = "bottom",
+  sidebar = 0,
 ) {
+  width -= sidebar;
   const tabs = showColumnTabs ? TABS : 0;
+  const left = dockPosition === "left" ? BOTTOM : 0;
+  const top = TOP + (dockPosition === "top" ? BOTTOM : 0);
+  const bottom = dockPosition === "bottom" ? BOTTOM : 0;
+  if (dockPosition === "left" || dockPosition === "right") width -= BOTTOM;
   const available = Math.max(0, width - GAP * (ratios.length - 1));
   let x = 0;
   return ratios.map((r, i) => {
@@ -71,10 +78,10 @@ export function bounds(
           ) +
           GAP * i;
     const b = {
-      x,
-      y: TOP + tabs,
+      x: x + left,
+      y: top + tabs,
       width: Math.max(0, end - x),
-      height: Math.max(0, height - TOP - tabs - BOTTOM),
+      height: Math.max(0, height - top - tabs - bottom),
     };
     x = end + GAP;
     return b;

@@ -1,12 +1,19 @@
 // Standalone integration harness for environments whose terminal is AppContainer-sandboxed.
 // Prepared by prepare-desktop-test.mjs; never included in the distributed application.
-const { app, webContents, session, BaseWindow } = require("electron");
+const {
+  app,
+  webContents,
+  session,
+  BaseWindow,
+  BrowserWindow,
+  dialog,
+} = require("electron");
 const fs = require("node:fs");
 const path = require("node:path");
 const http = require("node:http");
 const assert = require("node:assert/strict");
 const project = fs.readFileSync(path.join(__dirname, "project.txt"), "utf8");
-const results = path.join(project, "test-results", "groups-1.2-verified");
+const results = path.join(project, "test-results", "build-1.5-sidebar-d");
 fs.mkdirSync(results, { recursive: true });
 const stageFile = path.join(results, "desktop-stage.json");
 const stage = fs.existsSync(stageFile)
@@ -19,7 +26,7 @@ const server = http.createServer((req, res) => {
   requests++;
   res.setHeader("Content-Type", "text/html");
   res.end(
-    '<!doctype html><title>MultiDock local fixture</title><body style="background:#192d36;color:white;font:22px Segoe UI;padding:35px"><h1>Lokaler Integrationstest</h1><p>Native WebContentsView · persistentes Profil</p><script>localStorage.setItem("fixture","persisted");addEventListener("beforeunload",()=>localStorage.setItem("closedNormally","yes"));document.cookie="fixture=persisted;max-age=86400;path=/";setInterval(()=>document.title="alive-"+Date.now(),100)</script>',
+    '<!doctype html><title>MultiDock local fixture</title><body style="background:#192d36;color:white;font:22px Segoe UI;padding:35px"><header id="fixture-header"><h1>Lokaler Integrationstest</h1></header><p>Native WebContentsView · persistentes Profil</p><script>localStorage.setItem("fixture","persisted");addEventListener("beforeunload",()=>localStorage.setItem("closedNormally","yes"));document.cookie="fixture=persisted;max-age=86400;path=/";setInterval(()=>document.title="alive-"+Date.now(),100)</script>',
   );
 });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -71,6 +78,10 @@ app.whenReady().then(async () => {
     if (stage.phase === 2) {
       await ready("test-a");
       const c = (await state()).config;
+      assert.equal(c.sidebar.notes, "Notizen mit Umlauten: äöü\nZweite Zeile");
+      assert.equal(c.sidebar.background, "#203040");
+      assert.equal(c.sidebar.open, true);
+      assert.equal(c.sidebar.widgets[0], "mixer");
       assert.equal(c.count, 3);
       assert.deepEqual(c.layouts[3].ratios, [0.25, 0.45, 0.3]);
       const cookies = await session
@@ -85,7 +96,10 @@ app.whenReady().then(async () => {
         await w.executeJavaScript('localStorage.getItem("fixture")'),
         "persisted",
       );
-      assert.equal(await w.executeJavaScript('localStorage.getItem("closedNormally")'), "yes");
+      assert.equal(
+        await w.executeJavaScript('localStorage.getItem("closedNormally")'),
+        "yes",
+      );
       fs.writeFileSync(
         path.join(results, "desktop-integration.json"),
         JSON.stringify(
@@ -298,21 +312,50 @@ app.whenReady().then(async () => {
       'window.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape"}))',
     );
     pass("grouped active dock and inactive menu");
-    assert.equal(await ui.executeJavaScript('!!document.querySelector(".inactive-trigger small")'), false);
+    assert.equal(
+      await ui.executeJavaScript(
+        '!!document.querySelector(".inactive-trigger small")',
+      ),
+      false,
+    );
     await ui.executeJavaScript('document.querySelector(".dock-right").click()');
-    await until(() => ui.executeJavaScript('!document.querySelector(".popover")'));
+    await until(() =>
+      ui.executeJavaScript('!document.querySelector(".popover")'),
+    );
     await ui.executeJavaScript('document.querySelector(".service").click()');
-    await until(() => ui.executeJavaScript('!!document.querySelector(".target")'));
+    await until(() =>
+      ui.executeJavaScript('!!document.querySelector(".target")'),
+    );
     await ui.executeJavaScript('document.querySelector(".services").click()');
-    await until(() => ui.executeJavaScript('!document.querySelector(".target")'));
-    await ui.executeJavaScript('document.querySelector(".service").dispatchEvent(new MouseEvent("contextmenu", {bubbles:true,clientX:400}))');
-    await until(() => ui.executeJavaScript('!!document.querySelector(".context-menu")'));
-    await ui.executeJavaScript('document.querySelector(".inactive-trigger").click()');
-    await until(() => ui.executeJavaScript('!!document.querySelector(".inactive-menu") && !document.querySelector(".context-menu")'));
-    await ui.executeJavaScript('document.querySelector(".service").dispatchEvent(new MouseEvent("contextmenu", {bubbles:true,clientX:400}))');
-    await until(() => ui.executeJavaScript('!!document.querySelector(".context-menu") && !document.querySelector(".inactive-menu")'));
+    await until(() =>
+      ui.executeJavaScript('!document.querySelector(".target")'),
+    );
+    await ui.executeJavaScript(
+      'document.querySelector(".service").dispatchEvent(new MouseEvent("contextmenu", {bubbles:true,clientX:400}))',
+    );
+    await until(() =>
+      ui.executeJavaScript('!!document.querySelector(".context-menu")'),
+    );
+    await ui.executeJavaScript(
+      'document.querySelector(".inactive-trigger").click()',
+    );
+    await until(() =>
+      ui.executeJavaScript(
+        '!!document.querySelector(".inactive-menu") && !document.querySelector(".context-menu")',
+      ),
+    );
+    await ui.executeJavaScript(
+      'document.querySelector(".service").dispatchEvent(new MouseEvent("contextmenu", {bubbles:true,clientX:400}))',
+    );
+    await until(() =>
+      ui.executeJavaScript(
+        '!!document.querySelector(".context-menu") && !document.querySelector(".inactive-menu")',
+      ),
+    );
     await ui.executeJavaScript('document.querySelector(".dock").click()');
-    await until(() => ui.executeJavaScript('!document.querySelector(".popover")'));
+    await until(() =>
+      ui.executeJavaScript('!document.querySelector(".popover")'),
+    );
     pass("dock dismissal, exclusive menus and no inactive count");
     await cmd({
       type: "settings",
@@ -365,12 +408,10 @@ app.whenReady().then(async () => {
     await until(() =>
       ui.executeJavaScript('!!document.querySelector(".toast")'),
     );
-    await until(() =>
-      BaseWindow.getAllWindows()[0]
-        .contentView.children.filter(
-          (v) => v.webContents && v.webContents !== ui,
-        )
-        .every((v) => !v.getVisible()),
+    await until(
+      () =>
+        BaseWindow.getAllWindows()[0].contentView.children.at(-1)
+          ?.webContents === ui,
     );
     pass("toast is above native views");
     await ui.executeJavaScript(
@@ -397,6 +438,25 @@ app.whenReady().then(async () => {
     );
     await until(async () => (await state()).config.services[0].id === "steam");
     pass("settings drag sorting persists order");
+    const dimensions = [];
+    for (const tab of ["Allgemein", "Layout", "Dienste", "Erweitert"]) {
+      await ui.executeJavaScript(
+        `[...document.querySelectorAll('.settings-tabs button')].find(b=>b.textContent===${JSON.stringify(tab)}).click()`,
+      );
+      await wait(50);
+      dimensions.push(
+        await ui.executeJavaScript(
+          `(()=>{const b=document.querySelector('.settings-modal').getBoundingClientRect();return [b.width,b.height,document.querySelector(".settings-modal > .modal-footer").getBoundingClientRect().bottom]})()`,
+        ),
+      );
+    }
+    assert.ok(
+      dimensions.every(
+        (d) => JSON.stringify(d) === JSON.stringify(dimensions[0]),
+      ),
+    );
+    pass("settings size stays identical across every tab");
+
     await ui.executeJavaScript(
       'document.querySelector(".modal-heading button").click()',
     );
@@ -409,26 +469,330 @@ app.whenReady().then(async () => {
     await cmd({ type: "assign", id: "test-a", column: 0 });
     await cmd({ type: "assign", id: "test-b", column: 1 });
     await cmd({ type: "ratios", ratios: [0.25, 0.45, 0.3] });
-    await cmd({type:'saveService',service:{...(await state()).config.services.find(s=>s.id==='test-error'),url,allowHttp:true}});
-    await cmd({ type: 'assign', id: 'test-error', column: 2 });
-    await ui.executeJavaScript('document.querySelector(".layout-trigger").click()');
-    await until(() => ui.executeJavaScript('!!document.querySelector(".save-group") && !document.querySelector(".save-group").disabled'));
+    await cmd({
+      type: "saveService",
+      service: {
+        ...(await state()).config.services.find((s) => s.id === "test-error"),
+        url,
+        allowHttp: true,
+      },
+    });
+    await cmd({ type: "assign", id: "test-error", column: 2 });
+    await ui.executeJavaScript(
+      'document.querySelector(".layout-trigger").click()',
+    );
+    await until(() =>
+      ui.executeJavaScript(
+        '!!document.querySelector(".save-group") && !document.querySelector(".save-group").disabled',
+      ),
+    );
     await ui.executeJavaScript('document.querySelector(".save-group").click()');
     await until(async () => (await state()).config.groups.length === 1);
     const savedGroup = (await state()).config.groups[0];
     assert.deepEqual(savedGroup.layout.ratios, [0.25, 0.45, 0.3]);
-    await until(() => ui.executeJavaScript('!!document.querySelector(".dock-group")'));
-    assert.equal(await ui.executeJavaScript('document.querySelector(".dock-group").querySelectorAll(".group-service").length'), 3);
-    await cmd({type:'solo',id:'test-a'});
-    assert.equal((await state()).config.count,1);
+    await until(() =>
+      ui.executeJavaScript('!!document.querySelector(".dock-group")'),
+    );
+    assert.equal(
+      await ui.executeJavaScript(
+        'document.querySelector(".dock-group").querySelectorAll(".group-service").length',
+      ),
+      3,
+    );
+    await cmd({ type: "solo", id: "test-a" });
+    assert.equal((await state()).config.count, 1);
     await ui.executeJavaScript('document.querySelector(".dock-group").click()');
-    await until(async () => (await state()).config.count===3);
-    assert.deepEqual((await state()).config.layouts[3].ratios,[.25,.45,.3]);
-    await cmd({type:'deleteGroup',id:savedGroup.id});
-    assert.equal((await state()).config.groups.length,0);
-    assert.equal((await state()).config.services.some(s => s.id==='test-a'),true);
-    pass('saved group dock frame, widths, single view and group deletion');
-    await cmd({type:'layout',count:3});
+    await until(async () => (await state()).config.count === 3);
+    assert.deepEqual(
+      (await state()).config.layouts[3].ratios,
+      [0.25, 0.45, 0.3],
+    );
+    await cmd({ type: "deleteGroup", id: savedGroup.id });
+    assert.equal((await state()).config.groups.length, 0);
+    assert.equal(
+      (await state()).config.services.some((s) => s.id === "test-a"),
+      true,
+    );
+    pass("saved group dock frame, widths, single view and group deletion");
+
+    for (const dockPosition of ["left", "right", "top", "bottom"]) {
+      await cmd({
+        type: "settings",
+        settings: { ...(await state()).config.settings, dockPosition },
+      });
+      await until(() =>
+        ui.executeJavaScript(
+          `document.querySelector('.app').classList.contains('dock-${dockPosition}')`,
+        ),
+      );
+      assert.equal(
+        await ui.executeJavaScript(
+          "Math.round(document.querySelector('.titlebar').getBoundingClientRect().width) === innerWidth",
+        ),
+        true,
+      );
+      const views = BaseWindow.getAllWindows()[0].contentView.children;
+      const view = views.find((v) => v.webContents?.id === natives()[0].id);
+      if (dockPosition === "left") assert.ok(view.getBounds().x >= 72);
+      if (dockPosition === "top") assert.ok(view.getBounds().y >= 112);
+      await cmd({ type: "overlay", visible: true });
+      assert.equal(view.getVisible(), true);
+      assert.equal(views.includes(view), true);
+      assert.equal(
+        await ui.executeJavaScript(
+          "getComputedStyle(document.body).backgroundColor",
+        ),
+        "rgba(0, 0, 0, 0)",
+      );
+      await cmd({ type: "overlay", visible: false });
+    }
+    pass("four dock positions and live transparent overlays");
+    await cmd({ type: "solo", id: "test-a" });
+    const fixture =
+      natives().find(
+        (w) =>
+          w.session === session.fromPartition("persist:multidock-fixture-a"),
+      ) ?? natives()[0];
+    await fixture.executeJavaScriptInIsolatedWorld(1001, [
+      {
+        code: `const originalAttach=Element.prototype.attachShadow;Element.prototype.attachShadow=function(options){const result=originalAttach.call(this,options);globalThis.pickerRoot=result;return result;};void 0`,
+      },
+    ]);
+    const selecting = cmd({
+      type: "service",
+      id: "test-a",
+      action: "hideElement",
+    });
+    await until(() =>
+      fixture.executeJavaScriptInIsolatedWorld(1001, [
+        { code: "!!globalThis.pickerRoot" },
+      ]),
+    );
+    await fixture.executeJavaScript('document.querySelector("h1").click()');
+    const picker = await fixture.executeJavaScriptInIsolatedWorld(1001, [
+      {
+        code: `({disabled:pickerRoot.querySelector('input').disabled,max:pickerRoot.querySelector('input').max})`,
+      },
+    ]);
+    assert.equal(picker.disabled, false);
+    assert.equal(picker.max, "1");
+    await fixture.executeJavaScriptInIsolatedWorld(1001, [
+      {
+        code: `const slider=pickerRoot.querySelector('input');slider.value='1';slider.dispatchEvent(new Event('input'));void 0`,
+      },
+    ]);
+    await fixture.executeJavaScriptInIsolatedWorld(1001, [
+      { code: `pickerRoot.querySelector('button').click()` },
+    ]);
+    await selecting;
+    assert.equal(
+      (await state()).config.services.find((s) => s.id === "test-a")
+        .hiddenElements.length,
+      1,
+    );
+    assert.equal(
+      await fixture.executeJavaScript(
+        'getComputedStyle(document.querySelector("#fixture-header")).display',
+      ),
+      "none",
+    );
+    await fixture.reload();
+    await until(() =>
+      fixture.executeJavaScript('!!document.querySelector("h1")'),
+    );
+    await until(
+      async () =>
+        (await fixture.executeJavaScript(
+          'getComputedStyle(document.querySelector("#fixture-header")).display',
+        )) === "none",
+    );
+    await cmd({
+      type: "saveService",
+      service: {
+        ...(await state()).config.services.find((s) => s.id === "test-a"),
+        hiddenElements: [],
+      },
+    });
+    assert.notEqual(
+      await fixture.executeJavaScript(
+        'getComputedStyle(document.querySelector("#fixture-header")).display',
+      ),
+      "none",
+    );
+    pass("element picker saves scoped rule and removal restores element");
+    await cmd({
+      type: "saveService",
+      service: {
+        ...(await state()).config.services.find((s) => s.id === "test-a"),
+        hiddenElements: [
+          {
+            origin: new URL(url).origin,
+            selector: "#fixture-header",
+            enabled: true,
+          },
+        ],
+      },
+    });
+    await fixture.executeJavaScriptInIsolatedWorld(1001, [
+      {
+        code: `const original=Element.prototype.attachShadow;Element.prototype.attachShadow=function(o){const r=original.call(this,o);globalThis.pickerRoot=r;return r};void 0`,
+      },
+    ]);
+    const restoring = cmd({
+      type: "service",
+      id: "test-a",
+      action: "hideElement",
+    });
+    await until(() =>
+      fixture.executeJavaScriptInIsolatedWorld(1001, [
+        { code: "!!globalThis.pickerRoot" },
+      ]),
+    );
+    const movable = await fixture.executeJavaScriptInIsolatedWorld(1001, [
+      {
+        code: `(()=>{const h=pickerRoot.querySelector('.panel p');return typeof h.onpointerdown==='function'})()`,
+      },
+    ]);
+    assert.equal(movable, true);
+    await fixture.executeJavaScriptInIsolatedWorld(1001, [
+      {
+        code: `[...pickerRoot.querySelectorAll('button')].find(b=>b.textContent==='Wiederherstellen').click()`,
+      },
+    ]);
+    await restoring;
+    assert.equal(
+      (await state()).config.services.find((s) => s.id === "test-a")
+        .hiddenElements.length,
+      0,
+    );
+    assert.notEqual(
+      await fixture.executeJavaScript(
+        'getComputedStyle(document.querySelector("#fixture-header")).display',
+      ),
+      "none",
+    );
+    pass("picker restore clears all rules and drag handle is available");
+
+    const adapterScript = require(path.join(project, "node_modules/esbuild")).transformSync(fs.readFileSync(path.join(project, "src/main/spotify-adapter.ts"), "utf8"), { loader: "ts", format: "iife", globalName: "SpotifyTest" }).code;
+    await fixture.executeJavaScript(`(()=>{const slider=document.createElement('input');slider.type='range';slider.min='0';slider.max='100';slider.value='80';slider.dataset.testid='volume-bar';slider.addEventListener('input',()=>document.body.dataset.volume=slider.value);document.body.append(slider)})()`);
+    const volumeResult = await fixture.executeJavaScriptInIsolatedWorld(1002, [{code: adapterScript + ';SpotifyTest.spotifyAdapter("volume", 0.37)'}]);
+    assert.equal(volumeResult, true);
+    assert.equal(await fixture.executeJavaScript('document.body.dataset.volume'), '37');
+    const volumeRead = await fixture.executeJavaScriptInIsolatedWorld(1002, [{code: 'SpotifyTest.spotifyAdapter()'}]);
+    assert.equal(volumeRead.volume, 0.37);
+    pass("Spotify volume adapter updates actual slider state across isolated worlds and reads it back");
+
+    const captureWindow = new BrowserWindow({
+      width: 400,
+      height: 300,
+      show: true,
+      webPreferences: { sandbox: true, nodeIntegration: false },
+    });
+    await captureWindow.loadURL(
+      'data:text/html,<title>IndigoDock Capture Fixture</title><body style="background:teal;color:white;font:24px sans-serif"><h1>Lokaler Capture-Test</h1><p id="counter"></p><script>setInterval(()=>document.querySelector("p").textContent=Date.now(),100)</script>',
+    );
+    const originalDialog = dialog.showMessageBox;
+    dialog.showMessageBox = async (...args) => {
+      const opts = args.at(-1);
+      return {
+        response:
+          opts.title === "Bildschirm teilen"
+            ? opts.buttons.indexOf("IndigoDock Capture Fixture")
+            : 1,
+        checkboxChecked: false,
+      };
+    };
+    try {
+      const capture = await fixture.executeJavaScript(
+        `(async()=>{let stream,reader;try{stream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:true});const track=stream.getVideoTracks()[0];const processor=new MediaStreamTrackProcessor({track});reader=processor.readable.getReader();const {value:frame}=await Promise.race([reader.read(),new Promise((_,reject)=>setTimeout(()=>reject(Error('No frame')),12000))]);const result={width:frame.displayWidth,height:frame.displayHeight,state:track.readyState};frame.close();return result;}catch(e){return {error:e.name+': '+e.message}}finally{reader?.cancel();stream?.getTracks().forEach(t=>t.stop())}})()`,
+        true,
+      );
+      assert.ok(capture.width > 0, JSON.stringify(capture));
+      assert.equal(capture.state, "live");
+      pass(
+        "display capture selects local app window and receives real video frames",
+      );
+    } finally {
+      dialog.showMessageBox = originalDialog;
+      captureWindow.destroy();
+    }
+
+    const beforeWidgets = natives().length;
+    const beforeCount = (await state()).config.count;
+    assert.ok((await state()).catalog.every((s) => s.kind === "web"));
+    await cmd({ type: "sidebar", patch: { open: true } });
+    await until(() =>
+      ui.executeJavaScript('!!document.querySelector(".widget-board")'),
+    );
+    assert.equal(natives().length, beforeWidgets);
+    assert.equal((await state()).config.count, beforeCount);
+    assert.equal(
+      await ui.executeJavaScript(
+        'document.querySelectorAll(".widget-card").length',
+      ),
+      5,
+    );
+    assert.equal(
+      await ui.executeJavaScript(
+        'document.querySelectorAll(".widget-card h3, .widget-board h2").length',
+      ),
+      0,
+    );
+    await cmd({
+      type: "sidebar",
+      patch: {
+        widgets: ["mixer", "clock", "spotify", "performance", "notes"],
+        background: "#203040",
+        notes: "Notizen mit Umlauten: äöü\nZweite Zeile",
+      },
+    });
+    assert.equal((await state()).config.sidebar.widgets[0], "mixer");
+    for (const dockPosition of ["left", "right", "top", "bottom"]) {
+      await cmd({
+        type: "settings",
+        settings: { ...(await state()).config.settings, dockPosition },
+      });
+      await wait(100);
+      const edges = await ui.executeJavaScript(
+        `(()=>{const side=document.querySelector('.widget-sidebar').getBoundingClientRect();return {left:side.left,top:side.top,bottom:side.bottom,columns:[...document.querySelectorAll('.column')].map(c=>c.getBoundingClientRect().right)}})()`,
+      );
+      assert.ok(edges.columns.every((right) => right <= edges.left));
+    }
+    await cmd({ type: "sidebar", patch: { open: false } });
+    await cmd({ type: "sidebar", patch: { open: true } });
+    await until(() =>
+      ui.executeJavaScript('!!document.querySelector(".notes-widget")'),
+    );
+    assert.equal(
+      await ui.executeJavaScript(
+        'document.querySelector(".notes-widget").value',
+      ),
+      "Notizen mit Umlauten: äöü\nZweite Zeile",
+    );
+    pass(
+      "persistent sidebar excludes native views for all dock positions; five widgets, notes, palette and ordering",
+    );
+    const metrics = await ui.executeJavaScript("window.multidock.widgets()");
+    assert.ok(metrics.cpu >= 0 && metrics.cpu <= 100);
+    assert.equal(metrics.mixerError, undefined, metrics.mixerError);
+    assert.ok(metrics.mixer.every((s) => !s.name.includes("�")));
+    if (metrics.mixer.length)
+      await cmd({
+        type: "mixerVolume",
+        pid: metrics.mixer[0].pid,
+        value: metrics.mixer[0].volume,
+      });
+    fs.writeFileSync(
+      path.join(results, "widget-metrics.json"),
+      JSON.stringify({
+        cpu: metrics.cpu,
+        gpu: metrics.gpu,
+        gpuName: metrics.gpuName,
+        mixerSessions: metrics.mixer.length,
+      }),
+    );
+    pass("native mixer reads and writes UTF-8, GPU and CPU metrics");
+    await cmd({ type: "layout", count: 3 });
     await cmd({ type: "overlay", visible: true });
     await wait(100);
     try {
@@ -466,5 +830,3 @@ app.whenReady().then(async () => {
     server.close();
   }
 });
-
-

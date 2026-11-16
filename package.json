@@ -1,6 +1,6 @@
 {
   "name": "indigodock",
-  "version": "1.2.0",
+  "version": "1.5.0",
   "private": true,
   "description": "Modulare Multi-Service-Desktop-App für Windows",
   "author": "hausch1ld",
@@ -76,6 +76,9 @@
         "owner": "hausch1ld",
         "repo": "IndigoDock"
       }
+    ],
+    "asarUnpack": [
+      "dist/assets/AudioMixer.exe"
     ]
   }
 }

@@ -1,11 +1,15 @@
 import type { Config, Layout } from "./model";
 export function groupIds(layout: Layout): string[] {
-  return [...new Set(layout.columns.flatMap((c) => c.services))];
+  return [
+    ...new Set(layout.columns.flatMap((c) => (c.active ? [c.active] : []))),
+  ];
 }
 export function saveGroup(c: Config, id: string) {
   const layout = structuredClone(c.layouts[c.count]);
   if (layout.columns.some((col) => !col.active))
     throw Error("Bitte jeder Spalte zuerst einen Dienst zuweisen.");
+  for (const col of layout.columns)
+    col.services = col.active ? [col.active] : [];
   const members = groupIds(layout);
   const existing = c.groups.filter((g) =>
     groupIds(g.layout).some((x) => members.includes(x)),

@@ -1,3 +1,4 @@
+import { migrateSidebar } from "../shared/sidebar";
 import fs from "node:fs";
 import path from "node:path";
 import { configSchema, type Config } from "../shared/model";
@@ -16,9 +17,8 @@ export class Store {
   read() {
     for (const file of [this.file, this.file + ".bak"]) {
       try {
-        const config = configSchema.parse(
-          JSON.parse(fs.readFileSync(file, "utf8")),
-        );
+        const raw = JSON.parse(fs.readFileSync(file, "utf8"));
+        const config = migrateSidebar(configSchema.parse(raw), !!raw.sidebar);
         const ids = new Set(config.services.map((s) => s.id));
         if (ids.size !== config.services.length) throw Error("Doppelte IDs");
         for (const [key, l] of Object.entries(config.layouts)) {
@@ -31,7 +31,18 @@ export class Store {
             col.services.every((id) => ids.has(id)),
           ),
         );
-        for (const g of config.groups) normalize(g.layout, ids);
+        for (const g of config.groups) {
+          normalize(g.layout, ids);
+          for (const col of g.layout.columns)
+            col.services = col.active ? [col.active] : [];
+          g.name = g.layout.columns
+            .map(
+              (col) =>
+                config.services.find((s) => s.id === col.active)?.name ?? "",
+            )
+            .join(" + ")
+            .slice(0, 120);
+        }
         if (!config.groups.some((g) => g.id === config.activeGroup))
           config.activeGroup = null;
         return config;

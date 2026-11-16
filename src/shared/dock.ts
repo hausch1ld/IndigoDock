@@ -20,3 +20,12 @@ export function reordered(ids: string[], source: string, target: string) {
   next.splice(next.indexOf(target), 0, source);
   return next;
 }
+
+export function insertAt(ids: string[], source: string, boundary: number) {
+  const old = ids.indexOf(source);
+  if (old < 0) return ids;
+  const next = ids.filter((id) => id !== source);
+  const target = Math.max(0, Math.min(ids.length, boundary));
+  next.splice(target - (old < target ? 1 : 0), 0, source);
+  return next;
+}

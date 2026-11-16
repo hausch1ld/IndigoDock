@@ -9,3 +9,4 @@ docs/NEXT-ITERATION.md
 *.pfx
 test-results/
 *.log
+assets/AudioMixer.exe

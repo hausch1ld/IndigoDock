@@ -1,9 +1,35 @@
 import { z } from "zod";
 export const permissionSchema = z.enum(["ask", "allow", "deny"]);
+export const widgetSchema = z.enum([
+  "clock",
+  "spotify",
+  "performance",
+  "mixer",
+  "notes",
+]);
 export const serviceSchema = z.object({
   id: z.string().regex(/^[a-zA-Z0-9_-]{1,64}$/),
   name: z.string().trim().min(1).max(60),
+  kind: z.enum(["web", "widgets"]).default("web"),
+  widgets: z
+    .array(widgetSchema)
+    .max(5)
+    .default(["clock", "spotify", "performance", "mixer"]),
   url: z.string().max(2048),
+  hiddenElements: z
+    .array(
+      z.object({
+        selector: z
+          .string()
+          .min(1)
+          .max(2048)
+          .regex(/^[^{};@]+$/),
+        origin: z.string().max(2048),
+        enabled: z.boolean(),
+      }),
+    )
+    .max(100)
+    .default([]),
   currentUrl: z.string().max(4096).default(""),
   icon: z.string().max(200000).default(""),
   profile: z.string().regex(/^[a-zA-Z0-9_-]{1,64}$/),
@@ -38,6 +64,7 @@ export const layoutSchema = z.object({
 });
 export type Layout = z.infer<typeof layoutSchema>;
 export const settingsSchema = z.object({
+  dockPosition: z.enum(["bottom", "left", "right", "top"]).default("bottom"),
   autostart: z.boolean(),
   startMinimized: z.boolean(),
   minimizeToTray: z.boolean(),
@@ -51,8 +78,21 @@ export const settingsSchema = z.object({
   groupActive: z.boolean().default(false),
   hideInactive: z.boolean().default(false),
 });
+export const sidebarSchema = z.object({
+  open: z.boolean().default(false),
+  background: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .default("#141a20"),
+  notes: z.string().max(20000).default(""),
+  widgets: z
+    .array(widgetSchema)
+    .max(5)
+    .default(["clock", "spotify", "performance", "mixer", "notes"]),
+});
 export const configSchema = z.object({
   version: z.literal(1),
+  sidebar: sidebarSchema.default(() => sidebarSchema.parse({})),
   services: z.array(serviceSchema).max(100),
   count: z.number().int().min(1).max(4),
   layouts: z.record(z.string(), layoutSchema),
@@ -84,6 +124,8 @@ export type Status = {
 };
 export type Snapshot = {
   config: Config;
+  catalog?: Service[];
+  catalogError?: string;
   status: Record<string, Status>;
   version: string;
   captures?: Record<string, string>;
@@ -104,6 +146,24 @@ export type Snapshot = {
 };
 const id = z.string().max(64);
 export const commandSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("addKnown"), id }),
+  z.object({ type: z.literal("catalog"), action: z.enum(["open", "reload"]) }),
+  z.object({ type: z.literal("sidebar"), patch: z.object({
+    open: sidebarSchema.shape.open.unwrap().optional(),
+    background: sidebarSchema.shape.background.unwrap().optional(),
+    notes: sidebarSchema.shape.notes.unwrap().optional(),
+    widgets: sidebarSchema.shape.widgets.unwrap().optional(),
+  }) }),
+  z.object({
+    type: z.literal("spotifyControl"),
+    action: z.enum(["toggle", "next", "previous", "volume"]),
+    value: z.number().min(0).max(1).optional(),
+  }),
+  z.object({
+    type: z.literal("mixerVolume"),
+    pid: z.number().int().min(0).max(2147483647),
+    value: z.number().min(0).max(1),
+  }),
   z.object({ type: z.literal("saveGroup") }),
   z.object({ type: z.literal("activateGroup"), id }),
   z.object({ type: z.literal("deleteGroup"), id }),
@@ -134,6 +194,7 @@ export const commandSchema = z.discriminatedUnion("type", [
       "external",
       "remove",
       "clearProfile",
+      "hideElement",
     ]),
   }),
   z.object({ type: z.literal("saveService"), service: serviceSchema }),
@@ -155,7 +216,24 @@ export const commandSchema = z.discriminatedUnion("type", [
   }),
 ]);
 export type Command = z.input<typeof commandSchema>;
+export type WidgetData = {
+  cpu: number;
+  memory: number;
+  gpu?: number;
+  gpuName?: string;
+  mixer: { pid: number; name: string; volume: number; muted: boolean }[];
+  mixerError?: string;
+  spotify?: {
+    title: string;
+    artist: string;
+    cover: string;
+    paused: boolean;
+    volume: number;
+    available: boolean;
+  };
+};
 export type Bridge = {
+  widgets: () => Promise<WidgetData>;
   snapshot: () => Promise<Snapshot>;
   command: (c: Command) => Promise<void>;
   subscribe: (fn: (s: Snapshot) => void) => () => void;

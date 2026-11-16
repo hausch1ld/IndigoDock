@@ -1,6 +1,10 @@
+import { sidebarWidth } from "../shared/sidebar";
+import { WidgetBoard } from "./widgets";
 import React, { useEffect, useState, useRef, memo } from "react";
 import { createRoot } from "react-dom/client";
 import {
+  PanelRightOpen,
+  PanelRightClose,
   Columns3,
   Plus,
   Settings,
@@ -24,7 +28,7 @@ import type { Bridge, Snapshot, Service, Command } from "../shared/model";
 import { serviceSchema } from "../shared/model";
 import { bounds, resizePair, TOP, TABS, BOTTOM } from "../shared/layout";
 import "./style.css";
-import { dockGroups, reordered } from "../shared/dock";
+import { dockGroups, reordered, insertAt } from "../shared/dock";
 import { groupIds } from "../shared/groups";
 declare global {
   interface Window {
@@ -58,7 +62,9 @@ const Clock = memo(function Clock() {
           hour12: false,
         })}
       </strong>
-      <span>{now.toLocaleDateString("de-DE")}</span>
+      <span>
+        {now.toLocaleDateString("de-DE", { day: "numeric", month: "short" })}
+      </span>
     </time>
   );
 });
@@ -82,12 +88,16 @@ function App() {
   const [state, setState] = useState<Snapshot>();
   const [error, setError] = useState("");
   const [panel, setPanel] = useState<
-    "layout" | "settings" | "add" | "inactive" | null
+    "layout" | "settings" | "add" | "known" | "inactive" | null
   >(null);
   const [edit, setEdit] = useState<Service | null>(null);
   const [groupContext, setGroupContext] = useState<{
     id: string;
     x: number;
+  } | null>(null);
+  const [dockDrop, setDockDrop] = useState<{
+    id: string;
+    after: boolean;
   } | null>(null);
   const [choose, setChoose] = useState<string | null>(null),
     [drag, setDrag] = useState<string | null>(null),
@@ -116,6 +126,7 @@ function App() {
     return () => window.removeEventListener("resize", resize);
   }, []);
   const close = () => {
+    setDockDrop(null);
     setGroupContext(null);
     setPanel(null);
     setEdit(null);
@@ -149,7 +160,16 @@ function App() {
   const c = state.config,
     l = c.layouts[c.count],
     ratios = draftRatios ?? l.ratios,
-    rects = bounds(size.width, size.height, ratios, c.settings.showColumnTabs);
+    rects = bounds(
+      size.width,
+      size.height,
+      ratios,
+      c.settings.showColumnTabs,
+      c.settings.dockPosition,
+      sidebarWidth(size.width, c.sidebar.open),
+    );
+  const contentTop = TOP + (c.settings.dockPosition === "top" ? BOTTOM : 0);
+  const contentBottom = c.settings.dockPosition === "bottom" ? BOTTOM : 0;
   const groupedIds = new Set(c.groups.flatMap((g) => groupIds(g.layout)));
   const groups = dockGroups(
     c.services.filter((s) => !groupedIds.has(s.id)),
@@ -166,7 +186,7 @@ function App() {
       void send({ type: "solo", id: s.id }).catch(() => {});
       return;
     }
-    if (!s.url) {
+    if (!s.url && s.kind !== "widgets") {
       setEdit(s);
       return;
     }
@@ -193,10 +213,11 @@ function App() {
     setChoose(null);
   };
   const reorder = (id: string, target: string) => {
-    const ids = reordered(
-      c.services.map((s) => s.id),
+    const all = c.services.map((s) => s.id);
+    const ids = insertAt(
+      all,
       id,
-      target,
+      all.indexOf(target) + (dockDrop?.id === target && dockDrop.after ? 1 : 0),
     );
     void send({ type: "reorder", ids }).catch(() => {});
     close();
@@ -214,7 +235,9 @@ function App() {
         initial,
         index,
         (ev as PointerEvent).clientX - x,
-        size.width,
+        size.width -
+          sidebarWidth(size.width, c.sidebar.open) -
+          (["left", "right"].includes(c.settings.dockPosition) ? BOTTOM : 0),
       );
       setDraftRatios(latest);
       if (!frame)
@@ -247,11 +270,21 @@ function App() {
         aria-label={s.name}
         key={s.id}
         title={`${s.name} · ${s.running ? "Gestartet" : "Gestoppt"}${s.muted ? " · Stumm" : ""}`}
-        className={`service ${active ? "active" : ""} ${s.running ? "running" : "stopped"}`}
+        className={`service ${active ? "active" : ""} ${s.running ? "running" : "stopped"} ${dockDrop?.id === s.id ? (dockDrop.after ? "dock-drop-after" : "dock-drop-before") : ""}`}
         draggable
         onDragStart={(e) => dragStart(e, s)}
         onDragEnd={close}
-        onDragOver={(e) => e.preventDefault()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          const b = e.currentTarget.getBoundingClientRect();
+          const vertical = ["left", "right"].includes(c.settings.dockPosition);
+          setDockDrop({
+            id: s.id,
+            after: vertical
+              ? e.clientY > b.y + b.height / 2
+              : e.clientX > b.x + b.width / 2,
+          });
+        }}
         onDrop={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -282,7 +315,14 @@ function App() {
     );
   };
   return (
-    <div className={"app " + (!c.settings.showColumnTabs ? "tabs-hidden" : "")}>
+    <div
+      className={
+        "app dock-" +
+        c.settings.dockPosition +
+        " " +
+        (!c.settings.showColumnTabs ? "tabs-hidden" : "")
+      }
+    >
       <header className="titlebar">
         <div className="brand">
           <img className="app-logo" src="./icons/indigodock.png" alt="" />
@@ -297,6 +337,20 @@ function App() {
             }}
           >
             <Settings size={15} />
+          </button>
+          <button
+            title={c.sidebar.open ? "Sidebar einklappen" : "Sidebar ausklappen"}
+            aria-pressed={c.sidebar.open}
+            onClick={() => {
+              close();
+              void send({ type: "sidebar", patch: { open: !c.sidebar.open } });
+            }}
+          >
+            {c.sidebar.open ? (
+              <PanelRightClose size={17} />
+            ) : (
+              <PanelRightOpen size={17} />
+            )}
           </button>
           <button
             title="Minimieren"
@@ -319,6 +373,20 @@ function App() {
           </button>
         </div>
       </header>
+      {c.sidebar.open && (
+        <aside
+          className="widget-sidebar"
+          aria-label="Widget-Sidebar"
+          style={{
+            top: contentTop,
+            bottom: contentBottom,
+            right: c.settings.dockPosition === "right" ? BOTTOM : 0,
+            width: sidebarWidth(size.width, true),
+          }}
+        >
+          <WidgetBoard sidebar={c.sidebar} api={api} send={send} />
+        </aside>
+      )}
       <main className="workspace">
         {rects.map((b, i) => {
           const col = l.columns[i],
@@ -327,12 +395,15 @@ function App() {
           return (
             <section
               key={i}
-              className="column"
+              className={
+                "column " +
+                (s?.running && status?.state !== "error" ? "live" : "")
+              }
               style={{
                 left: b.x,
                 width: b.width,
-                top: TOP,
-                height: size.height - TOP - BOTTOM,
+                top: contentTop,
+                height: size.height - contentTop - contentBottom,
               }}
             >
               {c.settings.showColumnTabs && (
@@ -429,7 +500,11 @@ function App() {
             tabIndex={0}
             key={i}
             className="splitter"
-            style={{ left: b.x + b.width, top: TOP, bottom: BOTTOM }}
+            style={{
+              left: b.x + b.width,
+              top: contentTop,
+              bottom: contentBottom,
+            }}
             onPointerDown={(e) => startResize(e, i)}
             onKeyDown={(e) => {
               if (["ArrowLeft", "ArrowRight"].includes(e.key)) {
@@ -440,7 +515,11 @@ function App() {
                     ratios,
                     i,
                     e.key === "ArrowLeft" ? -20 : 20,
-                    size.width,
+                    size.width -
+                      sidebarWidth(size.width, c.sidebar.open) -
+                      (["left", "right"].includes(c.settings.dockPosition)
+                        ? BOTTOM
+                        : 0),
                   ),
                 });
               }
@@ -453,7 +532,7 @@ function App() {
       {(choose || drag) && (
         <div
           className="targets"
-          style={{ top: TOP, bottom: BOTTOM }}
+          style={{ top: contentTop, bottom: contentBottom }}
           onClick={close}
         >
           {rects.map((b, i) => (
@@ -558,7 +637,16 @@ function App() {
         </div>
       </footer>
       {(panel || context || edit || groupContext) && (
-        <div className="scrim" onClick={close} />
+        <div
+          className="scrim"
+          style={{
+            top: contentTop,
+            bottom: contentBottom,
+            left: c.settings.dockPosition === "left" ? BOTTOM : 0,
+            right: c.settings.dockPosition === "right" ? BOTTOM : 0,
+          }}
+          onClick={close}
+        />
       )}
       {groupContext && (
         <div
@@ -687,6 +775,11 @@ function App() {
                   [
                     { label: "Starten", key: "start", disabled: s.running },
                     { label: "Stoppen", key: "stop", disabled: !s.running },
+                    {
+                      label: "Element ausblenden",
+                      key: "hideElement",
+                      disabled: !s.running || s.kind === "widgets",
+                    },
                     { label: "Neu laden", key: "reload", disabled: !s.running },
                     {
                       label: s.muted ? "Ton einschalten" : "Stummschalten",
@@ -729,6 +822,60 @@ function App() {
             )
           );
         })()}
+      {panel === "known" && (
+        <div
+          className="modal known-services-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Dienst hinzufügen"
+        >
+          <div className="modal-heading">
+            <h2>Dienst hinzufügen</h2>
+            <button title="Schließen" onClick={close}>
+              <X size={20} />
+            </button>
+          </div>
+          <div className="known-services-list">
+            <button onClick={() => setPanel("add")}>
+              <Plus size={24} />
+              <span>Benutzerdefinierter Dienst</span>
+            </button>
+            {state.catalog?.map((s) => {
+              const exists = c.services.some((item) => item.id === s.id);
+              return (
+                <button
+                  key={s.id}
+                  disabled={exists}
+                  onClick={() =>
+                    void send({ type: "addKnown", id: s.id })
+                      .then(() => setPanel("settings"))
+                      .catch(() => {})
+                  }
+                >
+                  <Icon service={s} />
+                  <span>{s.name}</span>
+                  {exists && <small>Vorhanden</small>}
+                </button>
+              );
+            })}
+          </div>
+          {state.catalogError && (
+            <p className="warning">{state.catalogError}</p>
+          )}
+          <div className="modal-footer">
+            <button
+              onClick={() => void send({ type: "catalog", action: "open" })}
+            >
+              Katalog bearbeiten
+            </button>
+            <button
+              onClick={() => void send({ type: "catalog", action: "reload" })}
+            >
+              Neu laden
+            </button>
+          </div>
+        </div>
+      )}
       {(panel === "add" || edit) && (
         <ServiceDialog
           initial={edit}
@@ -746,7 +893,7 @@ function App() {
           state={state}
           send={send}
           onClose={close}
-          onAdd={() => setPanel("add")}
+          onAdd={() => setPanel("known")}
           onEdit={(s) => {
             setPanel(null);
             setEdit(s);
@@ -849,7 +996,7 @@ function ServiceDialog({
           <label className="full">
             Start-URL
             <input
-              required
+              required={s.kind !== "widgets"}
               type="url"
               placeholder="https://…"
               value={s.url}
@@ -987,6 +1134,43 @@ function ServiceDialog({
             </label>
           ))}
         </div>
+        <h3>Ausgeblendete Website-Elemente</h3>
+        {s.hiddenElements.length === 0 && (
+          <p className="note">
+            Rechtsklick auf das Dienst-Icon → Element ausblenden.
+          </p>
+        )}
+        {s.hiddenElements.map((rule, index) => (
+          <div className="hidden-rule" key={index}>
+            <input
+              type="checkbox"
+              aria-label="Regel aktiv"
+              checked={rule.enabled}
+              onChange={(e) =>
+                field(
+                  "hiddenElements",
+                  s.hiddenElements.map((r, i) =>
+                    i === index ? { ...r, enabled: e.target.checked } : r,
+                  ),
+                )
+              }
+            />
+            <code title={rule.origin + " · " + rule.selector}>
+              {rule.selector}
+            </code>
+            <button
+              type="button"
+              onClick={() =>
+                field(
+                  "hiddenElements",
+                  s.hiddenElements.filter((_, i) => i !== index),
+                )
+              }
+            >
+              Löschen
+            </button>
+          </div>
+        ))}
         {error && <p className="warning">{error}</p>}
         <div className="modal-footer">
           {initial && (
@@ -1025,6 +1209,7 @@ function SettingsDialog({
   const [tab, setTab] = useState("Allgemein"),
     [settings, setSettings] = useState({ ...state.config.settings });
   const [sortId, setSortId] = useState<string | null>(null);
+  const [dropAt, setDropAt] = useState<number | null>(null);
   const fields = {
     autostart: "Mit Windows starten (installierte App)",
     startMinimized: "Minimiert starten",
@@ -1065,196 +1250,239 @@ function SettingsDialog({
           </button>
         ))}
       </div>
-      {tab === "Allgemein" && (
-        <>
-          <p className="note">
-            Deutsch · Dunkles Design · Native Windows-Mediensteuerung
-          </p>
-          {Object.entries(fields)
-            .filter(
-              ([k]) =>
-                ![
-                  "restoreSession",
-                  "saveWidths",
-                  "showColumnTabs",
-                  "groupActive",
-                  "hideInactive",
-                ].includes(k),
-            )
-            .map(([key, label]) => (
+      <div className="settings-content">
+        {tab === "Allgemein" && (
+          <>
+            <p className="note">
+              Deutsch · Dunkles Design · Native Windows-Mediensteuerung
+            </p>
+            {Object.entries(fields)
+              .filter(
+                ([k]) =>
+                  ![
+                    "restoreSession",
+                    "saveWidths",
+                    "showColumnTabs",
+                    "groupActive",
+                    "hideInactive",
+                  ].includes(k),
+              )
+              .map(([key, label]) => (
+                <label key={key} className="setting-row">
+                  {label}
+                  <input
+                    type="checkbox"
+                    checked={settings[key as keyof typeof fields]}
+                    onChange={(e) =>
+                      setSettings({ ...settings, [key]: e.target.checked })
+                    }
+                  />
+                </label>
+              ))}
+          </>
+        )}
+        {tab === "Layout" && (
+          <>
+            {(
+              [
+                "showColumnTabs",
+                "groupActive",
+                "hideInactive",
+                "restoreSession",
+                "saveWidths",
+              ] as const
+            ).map((key) => (
               <label key={key} className="setting-row">
-                {label}
+                {fields[key]}
                 <input
                   type="checkbox"
-                  checked={settings[key as keyof typeof fields]}
+                  checked={settings[key]}
                   onChange={(e) =>
                     setSettings({ ...settings, [key]: e.target.checked })
                   }
                 />
               </label>
             ))}
-        </>
-      )}
-      {tab === "Layout" && (
-        <>
-          {(
-            [
-              "showColumnTabs",
-              "groupActive",
-              "hideInactive",
-              "restoreSession",
-              "saveWidths",
-            ] as const
-          ).map((key) => (
-            <label key={key} className="setting-row">
-              {fields[key]}
-              <input
-                type="checkbox"
-                checked={settings[key]}
+            <label className="setting-row">
+              Dock-Position
+              <select
+                value={settings.dockPosition}
                 onChange={(e) =>
-                  setSettings({ ...settings, [key]: e.target.checked })
+                  setSettings({
+                    ...settings,
+                    dockPosition: e.target
+                      .value as typeof settings.dockPosition,
+                  })
                 }
-              />
+              >
+                {Object.entries({
+                  bottom: "Unten",
+                  left: "Links",
+                  right: "Rechts",
+                  top: "Oben",
+                }).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
             </label>
-          ))}
-          <label className="setting-row">
-            Standardanzahl Spalten
-            <select
-              value={settings.defaultColumns}
-              onChange={(e) =>
-                setSettings({
-                  ...settings,
-                  defaultColumns: Number(e.target.value),
-                })
-              }
-            >
-              {[1, 2, 3, 4].map((n) => (
-                <option key={n}>{n}</option>
-              ))}
-            </select>
-          </label>
-          <p className="note">
-            Standardanzahl gilt, wenn „Letzte Spaltenbelegung“ deaktiviert ist.
-            Bekannte Layouts bleiben ansonsten getrennt gespeichert.
-          </p>
-          <button onClick={() => void send({ type: "resetLayout" })}>
-            Layoutzuordnungen zurücksetzen
-          </button>
-        </>
-      )}
-      {tab === "Dienste" && (
-        <div className="service-list">
-          <button className="primary add-service-settings" onClick={onAdd}>
-            <Plus size={16} /> Dienst hinzufügen
-          </button>
-          {state.config.services.map((s, i) => (
-            <div
-              key={s.id}
-              className={sortId === s.id ? "sorting" : ""}
-              draggable
-              onDragStart={(e) => {
-                setSortId(s.id);
-                e.dataTransfer.setData("text/plain", s.id);
-              }}
-              onDragEnd={() => setSortId(null)}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                if (sortId)
-                  void send({
-                    type: "reorder",
-                    ids: reordered(
-                      state.config.services.map((s) => s.id),
-                      sortId,
-                      s.id,
-                    ),
-                  });
-                setSortId(null);
-              }}
-            >
-              <GripVertical size={15} />
-              <Icon service={s} />
-              <span>
-                {s.name}
-                <small>
-                  {s.profile} · {s.running ? "Gestartet" : "Gestoppt"}
-                </small>
-              </span>
-              <button
-                disabled={i === 0}
-                title="Nach links"
-                onClick={() => {
-                  const ids = state.config.services.map((s) => s.id);
-                  [ids[i - 1], ids[i]] = [ids[i], ids[i - 1]];
-                  void send({ type: "reorder", ids });
+            <label className="setting-row">
+              Standardanzahl Spalten
+              <select
+                value={settings.defaultColumns}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    defaultColumns: Number(e.target.value),
+                  })
+                }
+              >
+                {[1, 2, 3, 4].map((n) => (
+                  <option key={n}>{n}</option>
+                ))}
+              </select>
+            </label>
+            <p className="note">
+              Standardanzahl gilt, wenn „Letzte Spaltenbelegung“ deaktiviert
+              ist. Bekannte Layouts bleiben ansonsten getrennt gespeichert.
+            </p>
+            <button onClick={() => void send({ type: "resetLayout" })}>
+              Layoutzuordnungen zurücksetzen
+            </button>
+          </>
+        )}
+        {tab === "Dienste" && (
+          <div className="service-list">
+            <button className="primary add-service-settings" onClick={onAdd}>
+              <Plus size={16} /> Dienst hinzufügen
+            </button>
+            {state.config.services.map((s, i) => (
+              <div
+                key={s.id}
+                className={
+                  (sortId === s.id ? "sorting " : "") +
+                  (dropAt === i ? "drop-before " : "") +
+                  (dropAt === i + 1 && i === state.config.services.length - 1
+                    ? "drop-after"
+                    : "")
+                }
+                draggable
+                onDragStart={(e) => {
+                  setSortId(s.id);
+                  e.dataTransfer.setData("text/plain", s.id);
+                }}
+                onDragEnd={() => {
+                  setSortId(null);
+                  setDropAt(null);
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  const b = e.currentTarget.getBoundingClientRect();
+                  setDropAt(i + (e.clientY > b.y + b.height / 2 ? 1 : 0));
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (sortId)
+                    void send({
+                      type: "reorder",
+                      ids: insertAt(
+                        state.config.services.map((s) => s.id),
+                        sortId,
+                        dropAt ?? i,
+                      ),
+                    });
+                  setSortId(null);
+                  setDropAt(null);
                 }}
               >
-                ←
+                <GripVertical size={15} />
+                <Icon service={s} />
+                <span>
+                  {s.name}
+                  <small>
+                    {s.profile} · {s.running ? "Gestartet" : "Gestoppt"}
+                  </small>
+                </span>
+                <button
+                  title="Dienst löschen"
+                  onClick={() =>
+                    void send({ type: "service", id: s.id, action: "remove" })
+                  }
+                >
+                  <X size={16} />
+                </button>
+                <button onClick={() => onEdit(s)}>Bearbeiten</button>
+              </div>
+            ))}
+          </div>
+        )}
+        {tab === "Erweitert" && (
+          <>
+            <p>IndigoDock {state.version}</p>
+            <div className="update-panel">
+              <p role="status">
+                {state.update?.message || "Updates über GitHub Releases"}
+              </p>
+              <button
+                disabled={
+                  state.update?.state === "checking" ||
+                  state.update?.state === "downloading"
+                }
+                onClick={() => void send({ type: "update", action: "check" })}
+              >
+                Auf Updates prüfen
               </button>
-              <button onClick={() => onEdit(s)}>Bearbeiten</button>
+              {state.update?.state === "available" && (
+                <button
+                  onClick={() =>
+                    void send({ type: "update", action: "download" })
+                  }
+                >
+                  Update herunterladen
+                </button>
+              )}
+              {state.update?.state === "downloaded" && (
+                <button
+                  onClick={() =>
+                    void send({ type: "update", action: "install" })
+                  }
+                >
+                  Neu starten und aktualisieren
+                </button>
+              )}
             </div>
-          ))}
-        </div>
-      )}
-      {tab === "Erweitert" && (
-        <>
-          <p>IndigoDock {state.version}</p>
-          <div className="update-panel">
-            <p role="status">
-              {state.update?.message || "Updates über GitHub Releases"}
+            <p className="note">
+              Chromium verwaltet die Anmeldedaten lokal. Google-Anmeldung kann
+              eingebettete Browser blockieren; Spotify-Wiedergabe ist ohne
+              unterstütztes Widevine nicht garantiert. „Im Browser öffnen“
+              verwendet eine separate Browsersitzung.
             </p>
-            <button
-              disabled={
-                state.update?.state === "checking" ||
-                state.update?.state === "downloading"
-              }
-              onClick={() => void send({ type: "update", action: "check" })}
-            >
-              Auf Updates prüfen
-            </button>
-            {state.update?.state === "available" && (
+            <div className="advanced-actions">
               <button
                 onClick={() =>
-                  void send({ type: "update", action: "download" })
+                  void send({ type: "diagnostics", action: "data" })
                 }
               >
-                Update herunterladen
+                Datenverzeichnis öffnen
               </button>
-            )}
-            {state.update?.state === "downloaded" && (
               <button
-                onClick={() => void send({ type: "update", action: "install" })}
+                onClick={() =>
+                  void send({ type: "diagnostics", action: "logs" })
+                }
               >
-                Neu starten und aktualisieren
+                Diagnoselog anzeigen
               </button>
-            )}
-          </div>
-          <p className="note">
-            Chromium verwaltet die Anmeldedaten lokal. Google-Anmeldung kann
-            eingebettete Browser blockieren; Spotify-Wiedergabe ist ohne
-            unterstütztes Widevine nicht garantiert. „Im Browser öffnen“
-            verwendet eine separate Browsersitzung.
-          </p>
-          <div className="advanced-actions">
-            <button
-              onClick={() => void send({ type: "diagnostics", action: "data" })}
-            >
-              Datenverzeichnis öffnen
-            </button>
-            <button
-              onClick={() => void send({ type: "diagnostics", action: "logs" })}
-            >
-              Diagnoselog anzeigen
-            </button>
-            <button
-              className="danger"
-              onClick={() => void send({ type: "window", action: "quit" })}
-            >
-              IndigoDock vollständig beenden
-            </button>
-          </div>
-        </>
-      )}
+              <button
+                className="danger"
+                onClick={() => void send({ type: "window", action: "quit" })}
+              >
+                IndigoDock vollständig beenden
+              </button>
+            </div>
+          </>
+        )}
+      </div>
       <div className="modal-footer">
         <button onClick={onClose}>Schließen</button>
         <button

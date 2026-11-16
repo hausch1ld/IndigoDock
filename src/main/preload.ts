@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { Bridge, Snapshot } from "../shared/model";
 const bridge: Bridge = {
+  widgets:()=>ipcRenderer.invoke("widgets"),
   snapshot: () => ipcRenderer.invoke("snapshot"),
   command: (c) => ipcRenderer.invoke("command", c),
   subscribe: (fn) => {

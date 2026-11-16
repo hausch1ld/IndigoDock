@@ -1,11 +1,14 @@
-# IndigoDock 1.2.0 · Prüfstand 14.11.2026
+# IndigoDock 1.5.0 · Prüfstand 16.11.2026
 
-- TypeScript und Produktionsbuild bestanden; 23 Logiktests bestanden.
-- 18 native Desktopprüfungen bestanden, einschließlich echtem Prozessneustart.
-- Gruppen: Speichern, Rahmen, Wiederherstellung der Breiten, Einzelansicht und Löschen geprüft.
-- Menü-Unschärfe entfernt; installierte Oberfläche visuell geprüft.
-- Cookies und Local Storage des Testdienstes bleiben beim Prozessneustart erhalten.
-- Discord war beim beobachteten Neustart des realen Profils weiterhin angemeldet. Das bestätigt diesen Neustart, nicht unbegrenzte Sitzungsdauer.
-- Lokale Castlabs-Laufzeit mit EVS für Streaming signiert; Signaturprüfung bestanden. Spotify-Musikwiedergabe noch nicht live bestätigt.
-- Beide lokalen Distributionsordner auf 1.2.0 aktualisiert; AppData-Installation gestartet.
-- GitHub baut Artefakte, veröffentlicht bis zur Einrichtung der EVS-Signierung in CI jedoch keine neuen Releases.
+- TypeScript und Produktionsbuild bestanden; 33 Logiktests bestanden.
+- 26 native Windows-Prüfungen bestanden, einschließlich echtem Prozessneustart.
+- Sidebar unabhängig von Spalten und Gruppen: korrekte native View-Abstände für alle vier Dock-Positionen; alte Widget-Dienste werden samt Reihenfolge migriert.
+- Notizen, Hintergrundfarbe und Widget-Reihenfolge bleiben nach Neustart erhalten.
+- Einstellungsfenster über alle Tabs gleich groß; Footer bleibt unten. Dienstkatalog mit Logos und benutzerdefiniertem Eintrag.
+- Spotify-Lautstärkeadapter setzt den Webplayer-Regler und löst dessen Eingabeereignisse aus; isolierter DOM-Integrationstest bestanden. Live-Prüfung bestanden: Widget und Webplayer übernehmen denselben Lautstärkewert; ursprüngliche Lautstärke wiederhergestellt.
+- Windows-Audiomixer liest und setzt reale Audiositzungen mit UTF-8-Ausgabe. CPU und NVIDIA-GPU liefern Messwerte.
+- Bildschirmfreigabe empfängt echte Videoframes eines separaten Testfensters; Discord-Übertragung zu einem Teilnehmer bleibt manuell zu bestätigen.
+- Gruppen, persistente Cookies, Local Storage, Element-Auswahl/Wiederherstellung, Menüs und Titelleiste geprüft.
+- WhatsApp erhält die echte Chromium-Version ohne Electron/App-Kennung; Live-Prüfung bestanden: angemeldete Chatliste statt Browser-Fehlermeldung.
+- Castlabs EVS-Streaming-Signatur der gepackten EXE gültig. Spotify-Wiedergabe war vom Benutzer bestätigt.
+- Öffentliche Release-Veröffentlichung bleibt bis zur EVS-Signierung in CI deaktiviert.

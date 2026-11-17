@@ -19,7 +19,7 @@ await fs.writeFile(
   }),
 );
 await fs.copyFile(
-  "scripts/desktop-harness.cjs",
+  process.argv.includes("--legacy") ? "scripts/desktop-harness.cjs" : "scripts/workspace-harness.cjs",
   path.join(resources, "desktop-harness.cjs"),
 );
 await fs.writeFile(path.join(resources, "project.txt"), project);

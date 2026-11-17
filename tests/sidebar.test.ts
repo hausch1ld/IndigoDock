@@ -27,7 +27,7 @@ test("legacy widget column becomes independent sidebar and preserves web session
     })),
   };
   c.groups = [
-    { id: "group", name: "Old", layout: structuredClone(c.layouts[3]) },
+    { id: "group", name: "Old", icon: "columns", layout: structuredClone(c.layouts[3]) },
   ];
   const before = structuredClone(c.services.slice(0, -1));
   migrateSidebar(c, false);

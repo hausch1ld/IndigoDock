@@ -119,16 +119,15 @@ try {
   assert.equal((await services()).find((w) => w.id === first.id)?.id, first.id);
   assert.equal((await services()).length, 2);
   assert.equal(requests, count);
-  // DOM overlay sits over snapshots, while underlying WebContents keep running.
+  // A normal dock click selects a single view without reloading the service.
   await page.getByRole("button", { name: "Test A", exact: true }).click();
-  await page.locator(".target").first().waitFor();
-  await page.locator(".target").nth(1).click();
-  assert.equal((await state()).config.layouts[4].columns[1].active, "test-a");
+  await page.waitForFunction(async () => (await window.multidock.snapshot()).config.count === 1);
+  assert.equal((await state()).config.layouts[1].columns[0].active, "test-a");
   await command({ type: "layout", count: 3 });
   await command({ type: "assign", id: "test-a", column: 0 });
   await command({ type: "assign", id: "test-b", column: 1 });
   await command({ type: "ratios", ratios: [0.25, 0.45, 0.3] });
-  await page.getByTitle("Spaltenlayout", { exact: true }).click();
+  await page.getByTitle("Gruppe erstellen", { exact: true }).click();
   await page.screenshot({ path: path.join(testDir, "02-layout.png") });
   await page.keyboard.press("Escape");
   // Foreign contents have no privileged bridge; hidden page remains alive.

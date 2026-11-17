@@ -1,3 +1,4 @@
+import { sessionProfile } from "../shared/profiles";
 import {
   session,
   dialog,
@@ -35,15 +36,29 @@ export class PermissionManager {
     if (this.installed.has(profile)) return ses;
 
     this.installed.add(profile);
+    // Persist cookie mutations promptly without reading or copying credential values.
+    let flushTimer: ReturnType<typeof setTimeout> | undefined;
+    ses.cookies.on("changed", () => {
+      if (flushTimer) return;
+      flushTimer = setTimeout(() => {
+        flushTimer = undefined;
+        ses.flushStorageData();
+        void ses.cookies
+          .flushStore()
+          .catch(() => this.log("Cookie-Checkpoint fehlgeschlagen."));
+      }, 2000);
+      flushTimer.unref();
+    });
 
     const resolve = (wc: WebContents | null, url: string) => {
       const s = wc
         ? this.lookup(wc)
         : this.config().services.find(
-            (s) => s.profile === profile && origin(s.url) === origin(url),
+            (s) =>
+              sessionProfile(s) === profile && origin(s.url) === origin(url),
           );
 
-      return s && s.profile === profile && origin(url) === origin(s.url)
+      return s && sessionProfile(s) === profile && origin(url) === origin(s.url)
         ? s
         : undefined;
     };

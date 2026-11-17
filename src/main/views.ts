@@ -1,3 +1,4 @@
+import { sessionProfile } from "../shared/profiles";
 import { sidebarWidth } from "../shared/sidebar";
 import {
   BaseWindow,
@@ -187,7 +188,7 @@ export class ViewManager {
 
     const v = new WebContentsView({
       webPreferences: {
-        session: this.permissions.get(s.profile),
+        session: this.permissions.get(sessionProfile(s)),
 
         nodeIntegration: false,
 
@@ -403,6 +404,37 @@ export class ViewManager {
     this.changed();
   }
 
+  async checkpoint() {
+    const sessions = [
+      ...new Set(
+        [...this.views.values()]
+          .filter((v) => !v.webContents.isDestroyed())
+          .map((v) => v.webContents.session),
+      ),
+    ];
+    await Promise.all(
+      sessions.map(async (ses) => {
+        try {
+          ses.flushStorageData();
+          await ses.cookies.flushStore();
+        } catch {
+          this.log("Session-Checkpoint konnte nicht gespeichert werden.");
+        }
+      }),
+    );
+  }
+
+  repaint() {
+    if (this.window.isDestroyed()) return;
+    // Restore stacking order and invalidate Chromium surfaces without a reload.
+    this.window.contentView.addChildView(this.ui, this.overlay ? undefined : 0);
+    this.ui.setVisible(true);
+    this.ui.webContents.invalidate();
+    for (const v of this.views.values())
+      if (v.getVisible() && !v.webContents.isDestroyed())
+        v.webContents.invalidate();
+  }
+
   layout() {
     const c = this.config(),
       b = this.window.getContentBounds(),
@@ -488,6 +520,7 @@ export class ViewManager {
   }
 
   async close() {
+    await this.checkpoint();
     const closing = [...this.views.values()].map((v) =>
       this.closeContents(v.webContents),
     );

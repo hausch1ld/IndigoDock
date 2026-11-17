@@ -8,19 +8,19 @@ Eine lokale Windows-11-App mit Castlabs Electron 45.2.1+wvcus, React und TypeScr
 
 Die entpackbare Windows-Version enthält `IndigoDock.exe` und alle benötigten Laufzeitdateien. **Den gesamten Ordner behalten**, nicht nur die EXE kopieren. Die App verwendet `%APPDATA%\multidock` für Konfiguration und Sessions. „Portabel“ bedeutet hier ohne Installation startbar; die Profildaten bleiben im Windows-Benutzerprofil.
 
-Erster Start: Alle elf vordefinierten Dienste sind absichtlich gestoppt. Rechtsklick auf ein Icon → **Starten**, danach Icon anklicken. Bei mehreren Spalten die Zielspalte auswählen. Alternativ das Icon in eine Spalte ziehen; dieser ausdrückliche Drop startet auch einen gestoppten Dienst. Gespeicherte Gruppen starten ihre Dienste beim Aktivieren; die Einzelansicht außerhalb einer aktiven Gruppe startet den ausgewählten Dienst ebenfalls.
+Ein Klick auf einen Dienst startet ihn in der Einzelansicht. STRG-Klick ergänzt oder entfernt Apps in einer Auswahl von bis zu vier Diensten; die Spaltenanzahl passt sich automatisch an. Rechtsklick auf eine noch nicht gruppierte ausgewählte App → **Als Gruppe speichern** speichert die Auswahl samt Breiten. **Gruppe erstellen** erzeugt alternativ einen Workspace mit leeren Dock-Plätzen, in die Apps gezogen werden können.
 
 Home Assistant: Rechtsklick → Einstellungen → eigene URL eintragen. Lokales HTTP erfordert die ausdrückliche HTTP-Option. Ungültige Zertifikate werden nicht übergangen.
 
 ## Bedienung
 
-- Spaltenmenü → **Als Gruppe speichern** speichert zugewiesene Dienste und Spaltenbreiten. Der Rahmen im Dock ruft die Gruppe auf. Ein anderer Dienst öffnet sich anschließend in einer Einzelansicht. Rechtsklick auf den Rahmen → **Gruppe löschen** behält die Dienste. Ein Dienst gehört jeweils zu einer Gruppe; erneutes Gruppieren ersetzt überlappende Gruppen.
-
-- Links unten: 1–4 Spalten auswählen. Trennlinien ziehen; mit Tastaturfokus auf einem Trenner verschieben Pfeiltasten die Grenze um 20 Pixel.
+- Einstellungen → **Aussehen → Gruppen-Modus**: **Icon + Gruppe** zeigt Symbol und eingerahmte Apps; **Nur Gruppe** öffnet bei einfachem Klick die Gruppe, bei Doppelklick die einzelne App; **Nur Icon** zeigt ein Gruppensymbol und lässt die Apps zusätzlich einzeln im Dock.
+- Rechtsklick auf Gruppe oder Gruppenmitglied → **Gruppen-Icon wählen**: 24 Lucide-Symbole. **Gruppe löschen** behält die Dienste. In **Icon + Gruppe** öffnet das Gruppensymbol den gespeicherten Split, ein App-Symbol die Einzelansicht.
+- Der Layout-Schalter heißt **Gruppe erstellen**. Trennlinien ändern Spaltenbreiten; die aktive Gruppe speichert diese mit.
 - Mittig: Dienste per Drag-and-drop sortieren. Rechtsklick: Start/Stopp, Reload, Stumm, Start-URL, externer Browser, Einstellungen, Entfernen.
 - Oben in jeder Spalte: bereits zugeordnete Dienste als kompakte Tabs. Verdeckte Dienste bleiben aktiv.
-- Einstellungen → Dienste → Dienst hinzufügen: eigener Dienst, URL, Icon (PNG/JPEG/WebP, maximal 140 KB), Profil, Startstatus.
-- Zahnradsymbol: allgemeine Einstellungen, Layout, Dienstverwaltung, Diagnose.
+- Einstellungen → Dienste → Dienst hinzufügen: eigener Dienst, URL, Icon (PNG/JPEG/WebP, maximal 140 KB), gemeinsames Browserprofil, Startstatus.
+- Zahnradsymbol: Allgemein, Aussehen, Dienste, Sidebar und Erweitert.
 - `Strg+R`, `Strg++`, `Strg+-`, `Strg+0` gelten im fokussierten Webdienst. `Escape` schließt App-Overlays.
 - Schließen blendet die App standardmäßig im Tray aus. Für ein vollständiges Beenden: Tray → Beenden oder Einstellungen → Erweitert → vollständig beenden.
 - Uhr: Windows-Systemzeit, 24 Stunden, deutsches Datum; eigener React-Baustein mit minutenweise ausgerichtetem Timer.
@@ -126,6 +126,17 @@ Die Widget-Sidebar bleibt unabhängig vom Workspace-Layout. Alte Widget-Dienste 
 - Einstellungen → Sidebar: Widgets hinzufügen/entfernen sowie Sidebar-, Widget- und Schriftfarbe anpassen.
 - 35 Logiktests und 29 native Windows-Prüfungen bestanden. Der Live-Wechsel der Spotify-Anzeige während laufender Musik ist noch nicht bestätigt.
 
-Das Windows-x64-ZIP im Release enthält den lokal mit Castlabs EVS signierten Build. Vollständig entpacken und `IndigoDock.exe` starten. Bestehende Profildaten bleiben unter `%APPDATA%\\multidock`. Dieses ZIP wird manuell aktualisiert; es ist kein NSIS-Installer und kein automatisches In-App-Update. Eine Windows-Herausgebersignatur ist nicht enthalten. Das Wetterwidget ist bislang nur auf Machbarkeit geprüft.
+Das Windows-x64-ZIP im Release enthält den lokal mit Castlabs EVS signierten Build. Vollständig entpacken und `IndigoDock.exe` starten. Bestehende Profildaten bleiben unter `%APPDATA%\\multidock`. Dieses ZIP wird manuell aktualisiert; es ist kein NSIS-Installer und kein automatisches In-App-Update. Eine Windows-Herausgebersignatur ist nicht enthalten. Das Wetterwidget ist ab 1.6.0 verfügbar.
 
 Die Einstellungen sind schmaler und haben einen festen Footer. **Dienst hinzufügen** öffnet die bekannten Dienste mit Logos; **Benutzerdefinierter Dienst** steht zuerst. Datum im Dock ohne Jahreszahl, runde Musiksteuerung, UTF-8 für den Windows-Mixer und verbesserte WhatsApp-Browsererkennung.
+
+
+## Neu in 1.7.0 (einschließlich 1.6.0)
+
+- Drei Gruppen-Darstellungen, auswählbare Symbole, größere Icon-Abstände und farblich abgesetzter Gruppenbereich.
+- Neue Auswahl per Klick/STRG-Klick sowie Gruppenplätze per Drag & Drop.
+- Bekannte Dienste mehrfach hinzufügen: jede Instanz erhält zunächst ein eigenes dauerhaftes Browserprofil. **Globalen Zugriff erlauben** verbindet ausdrücklich aktivierte Dienste mit dem gemeinsamen Profil. Gmail und YouTube müssen beide global aktiviert sein, um ihre Browseranmeldung zu teilen. Website-Zugriffsgrenzen bleiben erhalten; Google kann eingebettete Anmeldungen weiterhin einschränken. Beim Profilwechsel bleibt das private Profil erhalten.
+- **Aussehen** enthält Sidebar-, Widget-, Schrift-, Akzent- und Dockfarbe. Größere Einstellungsschrift.
+- Wetterwidget mit Ortssuche, aktuellem Wetter, Tagesminimum/-maximum, Regenwahrscheinlichkeit und fünf Folgetagen. Unter **Sidebar** aktivieren und über das Zahnrad konfigurieren; beim ersten Einsatz auch direkt im Widget. Keine Registrierung oder API-Schlüssel nötig. Open-Meteo wird online abgefragt, mit 15 Minuten Zwischenspeicherung. Quellenlink direkt unter dem Standort.
+- Wiederhergestellte Fenster aktualisieren ihre nativen Oberflächen ohne Website-Reload. Browserdaten werden regelmäßig sowie bei Hintergrund-/Ruhemodus gesichert. Eine dauerhafte Discord-Anmeldung kann nicht garantiert werden; der genaue Grund der gemeldeten Abmeldungen ist noch offen.
+- 41 Logiktests und 18 Windows-Prüfungen bestanden, einschließlich echtem Neustart und Session-Persistenz.

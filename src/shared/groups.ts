@@ -1,4 +1,50 @@
 import type { Config, Layout } from "./model";
+import { emptyLayout, assign } from "./layout";
+export function selectApps(c: Config, ids: string[]) {
+  if (
+    !ids.length ||
+    ids.length > 4 ||
+    new Set(ids).size !== ids.length ||
+    ids.some((id) => !c.services.some((s) => s.id === id))
+  )
+    throw Error("Ungültige Auswahl");
+  c.count = ids.length;
+  c.activeGroup = null;
+  c.layouts[c.count] = {
+    ratios: ids.map(() => 1 / ids.length),
+    columns: ids.map((id) => ({ services: [id], active: id })),
+  };
+}
+export function createEmptyGroup(c: Config, id: string, count: number) {
+  if (c.groups.length >= 100) throw Error("Maximal 100 Gruppen.");
+  const layout = emptyLayout(count);
+  c.groups.push({
+    id,
+    icon: "columns",
+    name: `Workspace mit ${count} ${count === 1 ? "Spalte" : "Spalten"}`,
+    layout,
+  });
+  activateGroup(c, id);
+}
+export function fillGroupSlot(
+  c: Config,
+  group: string,
+  column: number,
+  id: string,
+) {
+  const g = c.groups.find((g) => g.id === group);
+  if (!g || !g.layout.columns[column] || !c.services.some((s) => s.id === id))
+    throw Error("Ungültiger Gruppenplatz");
+  // Move the instance out of other groups, keeping their empty slots available.
+  for (const other of c.groups)
+    for (const col of other.layout.columns) {
+      col.services = col.services.filter((x) => x !== id);
+      if (col.active === id) col.active = null;
+    }
+  assign(g.layout, id, column);
+  g.layout.columns[column].services = [id];
+  activateGroup(c, group);
+}
 export function groupIds(layout: Layout): string[] {
   return [
     ...new Set(layout.columns.flatMap((c) => (c.active ? [c.active] : []))),
@@ -18,6 +64,7 @@ export function saveGroup(c: Config, id: string) {
   c.groups = c.groups.filter((g) => !existing.includes(g));
   c.groups.push({
     id,
+    icon: "columns",
     name: members
       .map((id) => c.services.find((s) => s.id === id)?.name ?? id)
       .join(" + ")

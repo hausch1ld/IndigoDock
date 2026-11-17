@@ -1433,3 +1433,367 @@ input[type="checkbox"] {
   border-radius: 50%;
   font-weight: 700;
 }
+
+/* Appearance and workspace groups */
+.dock {
+  background: var(--dock-color, #101416);
+}
+.dock-group {
+  gap: 0;
+  padding: 4px;
+  position: relative;
+}
+.dock-group.selected {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.group-activate {
+  width: 20px;
+  min-width: 20px;
+  height: 38px;
+  color: var(--accent);
+  padding: 0;
+}
+.group-slot {
+  width: 44px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+  border-radius: 5px;
+}
+.group-slot + .group-slot {
+  border-left: 1px solid color-mix(in srgb, var(--text) 20%, transparent);
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.group-slot img {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+}
+.slot-glow {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--accent) 35%, transparent),
+    transparent 70%
+  );
+}
+.group-slot.slot-hover {
+  outline: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+.app:is(.dock-left, .dock-right) .dock-group {
+  padding: 3px;
+  gap: 0;
+}
+.app:is(.dock-left, .dock-right) .group-activate {
+  width: 38px;
+  height: 18px;
+}
+.app:is(.dock-left, .dock-right) .group-slot {
+  width: 38px;
+  height: 40px;
+}
+.app:is(.dock-left, .dock-right) .group-slot + .group-slot {
+  border-left: 0;
+  border-top: 1px solid color-mix(in srgb, var(--text) 20%, transparent);
+}
+.settings-modal,
+.modal {
+  font-size: 14px;
+}
+.settings-modal button,
+.settings-modal input,
+.settings-modal select,
+.modal label,
+.modal input,
+.modal select {
+  font-size: 14px;
+}
+.settings-modal .note,
+.settings-modal small {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.settings-tabs button {
+  font-size: 14px;
+}
+.settings-content {
+  color: var(--text);
+}
+.setting-row > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.setting-row input[type="color"] {
+  width: 48px;
+  min-width: 48px;
+  height: 32px;
+  padding: 2px;
+}
+.weather-setup {
+  width: 100%;
+  min-height: 112px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: inherit;
+}
+.weather-heading,
+.location-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.weather-heading strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.weather-widget {
+  color: inherit;
+  font: inherit;
+}
+.weather-widget button,
+.location-chooser button {
+  color: inherit;
+}
+.weather-current {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 20px;
+}
+.weather-icon {
+  color: var(--accent);
+  flex-shrink: 0;
+  fill: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.weather-temperature {
+  font-size: 34px;
+  line-height: 1;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.weather-temperature small {
+  font-size: 14px;
+}
+.weather-details {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  font-size: 11px;
+  text-align: right;
+}
+.weather-details span:last-child {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.weather-days {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+}
+.weather-days > div {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+}
+.weather-credit {
+  display: block;
+  font-size: 9px;
+  margin-top: 14px;
+  opacity: 0.65;
+}
+.location-chooser {
+  font: inherit;
+  color: inherit;
+}
+.location-chooser form {
+  display: flex;
+  gap: 6px;
+  margin: 12px 0;
+}
+.location-chooser input {
+  min-width: 0;
+  width: 100%;
+  font-size: 13px;
+}
+.location-results {
+  max-height: 200px;
+  overflow: auto;
+}
+.location-results button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--line);
+}
+.primary:hover {
+  background: color-mix(in srgb, var(--accent) 80%, white);
+}
+.service.active,
+.settings-tabs .selected,
+.layout-options .chosen {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.audio-dot,
+.loading-bar,
+.empty-icon {
+  color: var(--accent);
+}
+.target {
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.target:hover {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.target-card {
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.layout-preview i {
+  background: color-mix(in srgb, var(--accent) 45%, #15191e);
+}
+.settings-content .setting-row {
+  font-size: 14px;
+}
+
+/* Configurable group presentation */
+.dock-group {
+  padding: 0;
+  overflow: hidden;
+  border-radius: 12px;
+  gap: 0;
+}
+.group-slot {
+  width: 54px;
+  height: 50px;
+  padding: 8px 12px;
+  flex-shrink: 0;
+}
+.group-activate {
+  width: 40px;
+  min-width: 40px;
+  height: 50px;
+  padding: 8px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-radius: 0;
+  border-right: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.group-activate:hover {
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.dock-group.mode-group-only {
+  padding: 0 3px;
+}
+.dock-group.mode-icon-only {
+  border: 0;
+  background: transparent;
+  overflow: visible;
+}
+.mode-icon-only .group-activate {
+  width: 46px;
+  min-width: 46px;
+  height: 46px;
+  background: transparent;
+  border: 0;
+  border-radius: 9px;
+}
+.mode-icon-only.selected .group-activate {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.app:is(.dock-left, .dock-right) .dock-group {
+  padding: 0;
+}
+.app:is(.dock-left, .dock-right) .group-activate {
+  width: 50px;
+  height: 36px;
+  border-right: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.app:is(.dock-left, .dock-right) .group-slot {
+  width: 50px;
+  height: 50px;
+  padding: 10px;
+}
+.app:is(.dock-left, .dock-right) .mode-icon-only .group-activate {
+  width: 46px;
+  height: 46px;
+  border: 0;
+}
+.group-icon-modal {
+  width: min(560px, calc(100% - 32px));
+}
+.group-icon-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  margin: 18px 0;
+}
+.group-icon-grid button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 4px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+.group-icon-grid button[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.group-icon-grid span {
+  font-size: 10px;
+}
+.group-icon-grid button:hover {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+.weather-credit {
+  margin: 3px 0 0;
+  line-height: 1.5;
+}
+.weather-credit button {
+  font: inherit;
+  color: inherit;
+  padding: 0;
+  background: none;
+}
+.weather-credit button:hover {
+  text-decoration: underline;
+}
+.credits {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 12px 0 20px;
+}
+.credits button {
+  font-size: 12px;
+  text-align: left;
+  color: var(--accent);
+}
+.layout-menu .eyebrow {
+  text-transform: none;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}

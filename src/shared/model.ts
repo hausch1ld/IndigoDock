@@ -1,3 +1,4 @@
+import { groupIconIds } from "./group-icons";
 import { z } from "zod";
 export const permissionSchema = z.enum(["ask", "allow", "deny"]);
 export const widgetSchema = z.enum([
@@ -7,6 +8,7 @@ export const widgetSchema = z.enum([
   "mixer",
   "notes",
   "calendar",
+  "weather",
 ]);
 export const serviceSchema = z.object({
   id: z.string().regex(/^[a-zA-Z0-9_-]{1,64}$/),
@@ -14,7 +16,7 @@ export const serviceSchema = z.object({
   kind: z.enum(["web", "widgets"]).default("web"),
   widgets: z
     .array(widgetSchema)
-    .max(6)
+    .max(7)
     .default(["clock", "spotify", "performance", "mixer"]),
   url: z.string().max(2048),
   hiddenElements: z
@@ -33,6 +35,7 @@ export const serviceSchema = z.object({
     .default([]),
   currentUrl: z.string().max(4096).default(""),
   icon: z.string().max(200000).default(""),
+  globalAccess: z.boolean().default(false),
   profile: z.string().regex(/^[a-zA-Z0-9_-]{1,64}$/),
   running: z.boolean().default(false),
   enabled: z.boolean().default(true),
@@ -65,6 +68,17 @@ export const layoutSchema = z.object({
 });
 export type Layout = z.infer<typeof layoutSchema>;
 export const settingsSchema = z.object({
+  groupMode: z
+    .enum(["icon-group", "group-only", "icon-only"])
+    .default("icon-group"),
+  accentColor: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .default("#75d9c4"),
+  dockColor: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .default("#101416"),
   dockPosition: z.enum(["bottom", "left", "right", "top"]).default("bottom"),
   autostart: z.boolean(),
   startMinimized: z.boolean(),
@@ -79,7 +93,27 @@ export const settingsSchema = z.object({
   groupActive: z.boolean().default(false),
   hideInactive: z.boolean().default(false),
 });
+export const weatherLocationSchema = z.object({
+  name: z.string().min(1).max(160),
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+});
+export type WeatherLocation = z.infer<typeof weatherLocationSchema>;
+export type WeatherData = {
+  temperature: number;
+  code: number;
+  isDay: boolean;
+  days: {
+    date: string;
+    code: number;
+    min: number;
+    max: number;
+    rain: number;
+  }[];
+  updated: number;
+};
 export const sidebarSchema = z.object({
+  weatherLocation: weatherLocationSchema.nullable().default(null),
   calendarVersion: z.literal(1).default(1),
   open: z.boolean().default(false),
   background: z
@@ -97,7 +131,7 @@ export const sidebarSchema = z.object({
   notes: z.string().max(20000).default(""),
   widgets: z
     .array(widgetSchema)
-    .max(6)
+    .max(7)
     .default(["clock", "spotify", "performance", "mixer", "notes", "calendar"]),
 });
 export const configSchema = z.object({
@@ -111,6 +145,7 @@ export const configSchema = z.object({
       z.object({
         id: z.string().max(64),
         name: z.string().max(120),
+        icon: z.enum(groupIconIds).default("columns"),
         layout: layoutSchema,
       }),
     )
@@ -161,6 +196,7 @@ export const commandSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("sidebar"),
     patch: z.object({
+      weatherLocation: weatherLocationSchema.nullable().optional(),
       open: sidebarSchema.shape.open.unwrap().optional(),
       background: sidebarSchema.shape.background.unwrap().optional(),
       widgetBackground: sidebarSchema.shape.widgetBackground
@@ -188,6 +224,22 @@ export const commandSchema = z.discriminatedUnion("type", [
     type: z.literal("mixerVolume"),
     pid: z.number().int().min(0).max(2147483647),
     value: z.number().min(0).max(1),
+  }),
+  z.object({ type: z.literal("selectApps"), ids: z.array(id).min(1).max(4) }),
+  z.object({
+    type: z.literal("createGroup"),
+    count: z.number().int().min(1).max(4),
+  }),
+  z.object({
+    type: z.literal("groupSlot"),
+    group: id,
+    column: z.number().int().min(0).max(3),
+    id,
+  }),
+  z.object({ type: z.literal("groupIcon"), id, icon: z.enum(groupIconIds) }),
+  z.object({
+    type: z.literal("infoLink"),
+    page: z.enum(["weather", "weatherLicense", "icons"]),
   }),
   z.object({ type: z.literal("saveGroup") }),
   z.object({ type: z.literal("activateGroup"), id }),
@@ -261,6 +313,8 @@ export type WidgetData = {
   };
 };
 export type Bridge = {
+  weatherSearch: (query: string) => Promise<WeatherLocation[]>;
+  weather: () => Promise<WeatherData | null>;
   widgets: () => Promise<WidgetData>;
   snapshot: () => Promise<Snapshot>;
   command: (c: Command) => Promise<void>;

@@ -4,7 +4,7 @@
 
 `npm test` führt die reinen TypeScript-Tests aus. `npm run build` beinhaltet den vollständigen Typecheck. `npm run test:integration` startet Electron mit Playwright, einem lokalen HTTP-Testdienst und einem isolierten Testprofil. Keine persönlichen Konten werden verwendet. Die Testskripte verändern keine echten IndigoDock-Profile.
 
-Für AppContainer-Terminals, in denen Electron vor dem Start abbricht, liegt zusätzlich `scripts/prepare-desktop-test.mjs` vor. Dieses Skript erstellt außerhalb der Distribution einen separaten Desktop-Teststarter. Zweimal aus Windows starten: Der erste Lauf testet Lebenszyklus/Zuordnung, der zweite prüft persistente Daten nach einem echten Prozessneustart. Ergebnis: `test-results/desktop-integration.json`. Der Teststarter gehört niemals in die veröffentlichte App.
+Für AppContainer-Terminals, in denen Electron vor dem Start abbricht, liegt zusätzlich `scripts/prepare-desktop-test.mjs` vor. Dieses Skript erstellt außerhalb der Distribution einen separaten Desktop-Teststarter mit `workspace-harness.cjs`. Zweimal aus Windows starten (zweiter Lauf prüft echte Neustart-Persistenz): STRG-Auswahl, Gruppenplätze, Instanzen und native Session-Trennung, Wetter und Farben werden geprüft. Ergebnis: `test-results/workspace-170-*/result.json`. Der Starter beendet jeden Lauf automatisch. Für einen neuen vollständigen Durchlauf die nur im Testverzeichnis liegende Datei workspace-170-stage.json umbenennen. Der alte `desktop-harness.cjs` dokumentiert die Bedienung vor 1.6 und ist nur mit `--legacy` für historische Builds auszuwählen. Kein Teststarter gehört in die Distribution.
 
 ## A · Echte Anmeldung
 
@@ -19,7 +19,7 @@ Für AppContainer-Terminals, in denen Electron vor dem Start abbricht, liegt zus
 1. Steam links, Discord in der Mitte, Spotify rechts zuordnen.
 2. Trennlinien auf ungefähr 25/45/30 ziehen. Während des Ziehens dürfen Webinhalte nicht neu laden.
 3. Vollständig beenden und neu starten. Spalten, Verhältnisse und Tabs vergleichen.
-4. 4 → 2 → 4 wechseln; vorheriges Viererlayout muss zurückkehren.
+4. Gruppe per Rechtsklick auf einen ausgewählten Dienst speichern; einen anderen Dienst einzeln öffnen und die Gruppe über ihren kleinen Layout-Schalter wieder aufrufen.
 5. Fenster auf 640 Pixel Breite und auf einem zweiten Monitor mit anderer DPI testen. Dock, Uhr und Splitter dürfen sich nicht überdecken.
 
 ## C · Hintergrundbetrieb
@@ -33,7 +33,7 @@ Für AppContainer-Terminals, in denen Electron vor dem Start abbricht, liegt zus
 ## D · Explizit stoppen
 
 1. Discord starten, anmelden, dann Rechtsklick → Stoppen.
-2. Es darf keine Dienstinstanz weiterlaufen. Erneute Icon-/Tab-Auswahl oder Layoutwechsel dürfen sie nicht automatisch starten.
+2. Es darf keine Dienstinstanz weiterlaufen. Ein ausdrücklicher Dock-Klick startet sie wieder in der Einzelansicht; STRG-Klick ergänzt die Mehrfachauswahl.
 3. Rechtsklick → Starten: gespeicherte Session wird wiederverwendet.
 4. Stoppen, App vollständig neu starten: Dienst muss gestoppt bleiben.
 

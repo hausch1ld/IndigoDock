@@ -1,3 +1,6 @@
+import { Weather } from "./weather";
+import { sessionProfile, newInstance } from "../shared/profiles";
+import { selectApps, createEmptyGroup, fillGroupSlot } from "../shared/groups";
 import { Widgets } from "./widgets";
 import { Catalog } from "./catalog";
 import {
@@ -13,6 +16,7 @@ import {
   dialog,
   session,
   components,
+  powerMonitor,
 } from "electron";
 import path from "node:path";
 import fs from "node:fs";
@@ -165,6 +169,15 @@ async function main() {
   ui.webContents.on("will-navigate", (e) => e.preventDefault());
   views = new ViewManager(win, () => store.config, changed, log, ui);
   widgets = new Widgets(views);
+  const weather = new Weather();
+  ipcMain.handle("weatherSearch", (e, q) => {
+    trusted(e);
+    return weather.search(q);
+  });
+  ipcMain.handle("weather", (e) => {
+    trusted(e);
+    return weather.read(store.config.sidebar.weatherLocation);
+  });
   ipcMain.handle("widgets", (e) => {
     trusted(e);
     return widgets.read();
@@ -189,15 +202,8 @@ async function main() {
         catalog.reload();
         const template = catalog.services.find((s) => s.id === cmd.id);
         if (!template) throw Error("Dienst fehlt im Katalog.");
-        if (c.services.some((s) => s.id === template.id))
-          throw Error("Dienst bereits vorhanden.");
         if (c.services.length >= 100) throw Error("Maximal 100 Dienste.");
-        c.services.push({
-          ...structuredClone(template),
-          running: false,
-          currentUrl: "",
-          hiddenElements: [],
-        });
+        c.services.push(newInstance(template, randomUUID(), c.services));
         break;
       }
       case "catalog":
@@ -209,6 +215,46 @@ async function main() {
         c.sidebar.widgets = [...new Set(c.sidebar.widgets)];
         break;
 
+      case "selectApps": {
+        const ids = [...new Set(cmd.ids)];
+        for (const id of ids) {
+          const s = c.services.find((s) => s.id === id);
+          if (!s || !validUrl(s.url, s.allowHttp))
+            throw Error("Dienst hat keine gültige URL.");
+        }
+        selectApps(c, ids);
+        for (const id of ids) {
+          const s = c.services.find((s) => s.id === id)!;
+          if (!s.running) views.start(s);
+        }
+        break;
+      }
+      case "createGroup":
+        createEmptyGroup(c, randomUUID(), cmd.count);
+        break;
+      case "groupSlot": {
+        const s = c.services.find((s) => s.id === cmd.id);
+        if (!s || !validUrl(s.url, s.allowHttp))
+          throw Error("Dienst hat keine gültige URL.");
+        fillGroupSlot(c, cmd.group, cmd.column, cmd.id);
+        if (!s.running) views.start(s);
+        break;
+      }
+      case "groupIcon": {
+        const group = c.groups.find((g) => g.id === cmd.id);
+        if (!group) throw Error("Gruppe fehlt");
+        group.icon = cmd.icon;
+        break;
+      }
+      case "infoLink": {
+        const links = {
+          weather: "https://open-meteo.com/",
+          weatherLicense: "https://creativecommons.org/licenses/by/4.0/",
+          icons: "https://lucide.dev/license",
+        };
+        await shell.openExternal(links[cmd.page]);
+        break;
+      }
       case "saveGroup":
         saveGroup(c, randomUUID());
         break;
@@ -275,7 +321,14 @@ async function main() {
         const old = c.services.find((x) => x.id === s.id);
         if (
           old &&
-          (old.profile !== s.profile || old.url !== s.url) &&
+          old.globalAccess !== s.globalAccess &&
+          views.views.has(old.id)
+        ) {
+          await views.stop(old);
+        }
+        if (
+          old &&
+          (sessionProfile(old) !== sessionProfile(s) || old.url !== s.url) &&
           views.views.has(old.id)
         )
           throw Error("Dienst vor URL- oder Profilwechsel stoppen.");
@@ -283,7 +336,7 @@ async function main() {
           throw Error("Maximal 100 Dienste.");
         // Current URL is trusted only from the existing native view, never from renderer edits.
         s.currentUrl =
-          old && old.url === s.url && old.profile === s.profile
+          old && old.url === s.url && sessionProfile(old) === sessionProfile(s)
             ? old.currentUrl
             : "";
         if (old) Object.assign(old, s);
@@ -347,7 +400,9 @@ async function main() {
             }
         }
         if (cmd.action === "clearProfile") {
-          const group = c.services.filter((x) => x.profile === s.profile);
+          const group = c.services.filter(
+            (x) => sessionProfile(x) === sessionProfile(s),
+          );
           const r = await dialog.showMessageBox(win, {
             type: "warning",
             message: `Profil „${s.profile}“ löschen und abmelden?`,
@@ -361,7 +416,9 @@ async function main() {
             await views.stop(s);
             s.currentUrl = "";
           }
-          const ses = session.fromPartition("persist:multidock-" + s.profile);
+          const ses = session.fromPartition(
+            "persist:multidock-" + sessionProfile(s),
+          );
           await ses.clearStorageData();
           await ses.clearCache();
           await ses.clearAuthCache();
@@ -411,8 +468,47 @@ async function main() {
         c.layouts = { [c.count]: emptyLayout(c.count) };
         break;
     }
+    if ((cmd.type === "ratios" || cmd.type === "assign") && c.activeGroup) {
+      const g = c.groups.find((g) => g.id === c.activeGroup);
+      if (g) g.layout = structuredClone(c.layouts[c.count]);
+    }
     if (!win.isDestroyed()) layout();
     changed();
+  });
+  // Windows can restore a stale compositor surface without issuing resize.
+  let restoreTimer: ReturnType<typeof setTimeout> | undefined;
+  const refresh = () => {
+    if (quitting || win.isDestroyed() || win.isMinimized()) return;
+    layout();
+    views.repaint();
+    clearTimeout(restoreTimer);
+    restoreTimer = setTimeout(() => {
+      if (!quitting && !win.isDestroyed() && !win.isMinimized()) {
+        layout();
+        views.repaint();
+      }
+    }, 160);
+  };
+  win.on("show", refresh);
+  win.on("restore", refresh);
+  win.on("focus", refresh);
+  win.on("unmaximize", refresh);
+  const checkpoint = () => {
+    if (!quitting) void views.checkpoint();
+  };
+  const checkpointTimer = setInterval(checkpoint, 30000);
+  checkpointTimer.unref();
+  win.on("blur", checkpoint);
+  win.on("hide", checkpoint);
+  powerMonitor.on("suspend", checkpoint);
+  powerMonitor.on("resume", refresh);
+  powerMonitor.on("unlock-screen", refresh);
+  win.once("closed", () => {
+    clearInterval(checkpointTimer);
+    clearTimeout(restoreTimer);
+    powerMonitor.removeListener("suspend", checkpoint);
+    powerMonitor.removeListener("resume", refresh);
+    powerMonitor.removeListener("unlock-screen", refresh);
   });
   win.on("resize", layout);
   win.on("resized", saveWindow);
@@ -513,7 +609,7 @@ else {
       if (savingSessions) return;
       savingSessions = true;
       const profiles = [
-        ...new Set(store.config.services.map((s) => s.profile)),
+        ...new Set(store.config.services.map((s) => sessionProfile(s))),
       ];
       void views
         .close()

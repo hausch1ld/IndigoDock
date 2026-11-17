@@ -44,7 +44,7 @@ export class Store {
           g.name = g.layout.columns
             .map(
               (col) =>
-                config.services.find((s) => s.id === col.active)?.name ?? "",
+                config.services.find((s) => s.id === col.active)?.name ?? "Freier Platz",
             )
             .join(" + ")
             .slice(0, 120);

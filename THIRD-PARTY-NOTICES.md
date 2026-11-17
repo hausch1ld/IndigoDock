@@ -6,4 +6,8 @@ Die mitgelieferten Dienstlogos stammen aus dem Paket [Simple Icons](https://simp
 
 Das IndigoDock-Symbol wurde vom Projektinhaber bereitgestellt und für PNG/ICO skaliert.
 
+Gruppen-Icons: Lucide, ISC-Lizenz, einschließlich Feather-Anteilen unter MIT. Vollständiger Lizenzhinweis in `public/lucide-LICENSE.txt`, in der Distribution unter `dist/ui/lucide-LICENSE.txt`. Quelle: https://lucide.dev/license.
+
+Wetterdaten: Open-Meteo, CC BY 4.0, https://open-meteo.com/ und https://creativecommons.org/licenses/by/4.0/. Temperaturwerte werden für die Anzeige gerundet. Der Quellenhinweis mit Anbieter- und Lizenzlink steht direkt unter dem Standort im Wetterwidget. Keine API-Zugangsdaten erforderlich; der öffentliche Endpunkt ist für nichtkommerzielle Nutzung vorgesehen.
+
 Widevine und andere proprietäre DRM-Komponenten werden nicht mitgeliefert.

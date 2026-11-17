@@ -1,3 +1,15 @@
+# IndigoDock 1.7.0 · Lokaler Prüfstand 17.11.2026
+
+41 Logiktests, Typecheck und Produktionsbuild erfolgreich. 18 native Windows-Prüfungen bestanden, einschließlich echtem Prozessneustart: drei Gruppen-Modi, Doppelklick zur Einzelansicht, Icon-Auswahl (24 Lucide-Symbole), kein redundantes Speichern-Menü bei Gruppenmitgliedern, Rahmen/Platzhalter, wiederhergestellte Fenster ohne Neuladen, private und gemeinsam genutzte Cookies/Local Storage sowie gespeicherte Icons und Breiten. Wetter: kein Zahnrad nach Einrichtung, Quellenhinweis unter dem Standort.
+
+Discord verwendet weiterhin die vorhandene Partition `persist:multidock-discord` mit deaktiviertem globalem Profil. Keine Zugangsdaten ausgelesen oder kopiert. Cookie-Änderungen werden zeitnah, Sitzungsdaten zusätzlich regelmäßig sowie bei Hintergrund-/Ruhemodus gespeichert. Der Test beweist lokale Browserpersistenz, nicht die unbegrenzte Gültigkeit einer echten Discord-Sitzung. Die Ursache der gemeldeten sporadischen Abmeldung ist noch nicht abschließend nachgewiesen.
+
+# IndigoDock 1.6.0 · Lokaler Prüfstand 17.11.2026
+
+39 Logiktests bestanden; Typecheck und Produktionsbuild erfolgreich. Zwölf neue native Windows-Integrationstests prüfen normale Auswahl, STRG-Auswahl mit 2/3/4 Apps, Kontextmenü zum Speichern, leere Gruppen und Drop-Ziel, gespeicherte Breiten, mehrere bekannte Dienste, tatsächliche private/geteilte Chromium-Sessions samt Rückkehr zum privaten Profil, Wetter-Ersteinrichtung, Wetteranzeige mit fünf Folgetagen und alle fünf Farben unter Aussehen.
+
+Wetter und Einstellungen visuell kontrolliert. Echte Open-Meteo-Abfrage mit öffentlichem Testort Berlin erfolgreich (acht Suchtreffer, sechs Tage einschließlich heute). Der automatisierte UI-Test nutzt feste Wetterdaten ohne persönliche Standortdaten. Bisherige 1.5.2-Prüfungen sind unten als historischer Stand dokumentiert, nicht als erneuter vollständiger Durchlauf.
+
 # IndigoDock 1.5.2 · Lokaler Prüfstand 16.11.2026
 
 35 Logiktests und 29 native Windows-Prüfungen bestanden, einschließlich Prozessneustart. Kalender: Montag als Wochenbeginn, Schaltjahre, Monatswechsel und heutiger Tag geprüft. Sidebar-Schalter im Dock; Titelleistenuhr nur bei geschlossener Sidebar. Abstände und Kalenderansicht in der installierten App visuell geprüft.

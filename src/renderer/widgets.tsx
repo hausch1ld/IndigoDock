@@ -1,3 +1,4 @@
+import { WeatherWidget } from "./weather";
 import { CalendarWidget } from "./calendar";
 import React, { useState, useEffect, useRef } from "react";
 import {
@@ -107,6 +108,7 @@ export function WidgetBoard({
     mixer: "Windows-Lautstärkemixer",
     notes: "Notizen",
     calendar: "Kalender",
+    weather: "Wetter",
   };
   const sessions = [
     ...new Map((data?.mixer ?? []).map((s) => [s.pid, s])).values(),
@@ -200,6 +202,15 @@ export function WidgetBoard({
             setDrop(null);
           }}
         >
+          {kind === "weather" && (
+            <WeatherWidget
+              api={api}
+              location={sidebar.weatherLocation}
+              onLocation={(p) =>
+                act({ type: "sidebar", patch: { weatherLocation: p } })
+              }
+            />
+          )}
           {kind === "calendar" && <CalendarWidget now={now} />}
           {kind === "notes" && (
             <textarea

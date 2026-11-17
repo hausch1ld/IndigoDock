@@ -1,3 +1,5 @@
+import { GroupIcon, GroupIconPicker } from "./group-icons";
+import { LocationChooser } from "./weather";
 import { sidebarWidth } from "../shared/sidebar";
 import { WidgetBoard } from "./widgets";
 import React, { useEffect, useState, useRef, memo } from "react";
@@ -90,6 +92,7 @@ function App() {
   const [panel, setPanel] = useState<
     "layout" | "settings" | "add" | "known" | "inactive" | null
   >(null);
+  const [iconGroup, setIconGroup] = useState<string | null>(null);
   const [edit, setEdit] = useState<Service | null>(null);
   const [groupContext, setGroupContext] = useState<{
     id: string;
@@ -126,6 +129,7 @@ function App() {
     return () => window.removeEventListener("resize", resize);
   }, []);
   const close = () => {
+    setIconGroup(null);
     setDockDrop(null);
     setGroupContext(null);
     setPanel(null);
@@ -137,6 +141,7 @@ function App() {
   };
   const overlay = !!(
     panel ||
+    iconGroup ||
     edit ||
     choose ||
     drag ||
@@ -172,7 +177,9 @@ function App() {
   const contentBottom = c.settings.dockPosition === "bottom" ? BOTTOM : 0;
   const groupedIds = new Set(c.groups.flatMap((g) => groupIds(g.layout)));
   const groups = dockGroups(
-    c.services.filter((s) => !groupedIds.has(s.id)),
+    c.services.filter(
+      (s) => c.settings.groupMode === "icon-only" || !groupedIds.has(s.id),
+    ),
     c.settings,
   );
   const service = (id: string | null) => c.services.find((s) => s.id === id);
@@ -180,23 +187,25 @@ function App() {
     s: Service,
     action: Extract<Command, { type: "service" }>["action"],
   ) => void send({ type: "service", id: s.id, action }).catch(() => {});
-  const open = (s: Service) => {
+  const open = (s: Service, additive = false) => {
     close();
-    if (c.activeGroup) {
-      void send({ type: "solo", id: s.id }).catch(() => {});
-      return;
-    }
     if (!s.url && s.kind !== "widgets") {
       setEdit(s);
       return;
     }
-    if (!s.running) {
-      setContext({ id: s.id, x: size.width / 2 });
+    const current = l.columns.flatMap((col) =>
+      col.active ? [col.active] : [],
+    );
+    const ids = additive
+      ? current.includes(s.id)
+        ? current.filter((id) => id !== s.id)
+        : [...current, s.id]
+      : [s.id];
+    if (ids.length > 4) {
+      setError("Maximal vier Apps gleichzeitig auswählen.");
       return;
     }
-    if (c.count === 1)
-      void send({ type: "assign", id: s.id, column: 0 }).catch(() => {});
-    else setChoose(s.id);
+    if (ids.length) void send({ type: "selectApps", ids }).catch(() => {});
   };
   const place = (id: string, i: number, startIfStopped = false) => {
     void send({ type: "assign", id, column: i, startIfStopped }).catch(
@@ -290,7 +299,7 @@ function App() {
           e.stopPropagation();
           if (drag && drag !== s.id) reorder(drag, s.id);
         }}
-        onClick={() => open(s)}
+        onClick={(e) => open(s, e.ctrlKey)}
         onContextMenu={(e) => {
           e.preventDefault();
           close();
@@ -316,6 +325,13 @@ function App() {
   };
   return (
     <div
+      style={
+        {
+          "--accent": c.settings.accentColor,
+          "--dock-color": c.settings.dockColor,
+          "--text": c.sidebar.textColor,
+        } as React.CSSProperties
+      }
       className={
         "app dock-" +
         c.settings.dockPosition +
@@ -561,47 +577,148 @@ function App() {
         <div className="dock-left">
           <button
             className={"layout-trigger " + (panel === "layout" ? "active" : "")}
-            title="Spaltenlayout"
+            title="Gruppe erstellen"
             onClick={() => setPanel(panel === "layout" ? null : "layout")}
           >
             <Columns3 size={21} />
-            <span>{c.count}</span>
             <ChevronDown size={12} />
           </button>
         </div>
         <nav className="services" aria-label="Dienste">
           {c.groups.map((g) => (
-            <button
+            <div
               key={g.id}
               className={
-                "dock-group " + (c.activeGroup === g.id ? "selected" : "")
+                "dock-group mode-" +
+                c.settings.groupMode +
+                " " +
+                (c.activeGroup === g.id ? "selected" : "")
               }
-              title={g.name}
+              role="group"
               aria-label={"Gruppe: " + g.name}
-              onClick={() => {
-                close();
-                void send({ type: "activateGroup", id: g.id }).catch(() => {});
-              }}
               onContextMenu={(e) => {
                 e.preventDefault();
                 close();
                 setGroupContext({ id: g.id, x: e.clientX });
               }}
             >
-              {groupIds(g.layout).map((id) => {
-                const s = service(id);
-                return s ? (
-                  <span
-                    key={id}
-                    className={
-                      "group-service " + (s.running ? "running" : "stopped")
+              {c.settings.groupMode !== "group-only" && (
+                <button
+                  className="group-activate"
+                  onDragOver={(e) => {
+                    if (
+                      c.settings.groupMode === "icon-only" &&
+                      g.layout.columns.some((col) => !col.active)
+                    )
+                      e.preventDefault();
+                  }}
+                  onDrop={(e) => {
+                    const column = g.layout.columns.findIndex(
+                      (col) => !col.active,
+                    );
+                    const id = e.dataTransfer.getData("text/plain");
+                    if (column >= 0 && id) {
+                      e.preventDefault();
+                      void send({
+                        type: "groupSlot",
+                        group: g.id,
+                        column,
+                        id,
+                      }).catch(() => {});
+                      close();
                     }
-                  >
-                    <Icon service={s} />
-                  </span>
-                ) : null;
-              })}
-            </button>
+                  }}
+                  title={"Gruppe anzeigen: " + g.name}
+                  aria-label={"Gruppe anzeigen: " + g.name}
+                  onClick={() => {
+                    close();
+                    void send({ type: "activateGroup", id: g.id }).catch(
+                      () => {},
+                    );
+                  }}
+                >
+                  <GroupIcon id={g.icon} size={21} />
+                </button>
+              )}
+              {c.settings.groupMode !== "icon-only" &&
+                g.layout.columns.map((col, i) => {
+                  const s = service(col.active);
+                  return (
+                    <button
+                      key={i}
+                      className={"group-slot " + (!s ? "empty-slot" : "")}
+                      title={
+                        s
+                          ? c.settings.groupMode === "group-only"
+                            ? `${s.name} · Klick: Gruppe · Doppelklick: Einzelansicht`
+                            : `${s.name} · Klick: Einzelansicht · STRG: Mehrfachauswahl`
+                          : `App in Spalte ${i + 1} ziehen`
+                      }
+                      aria-label={s ? s.name : `Leerer Gruppenplatz ${i + 1}`}
+                      draggable={!!s}
+                      onDragStart={(e) => {
+                        if (s) dragStart(e, s);
+                      }}
+                      onDragEnd={close}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.currentTarget.classList.add("slot-hover");
+                      }}
+                      onDragLeave={(e) =>
+                        e.currentTarget.classList.remove("slot-hover")
+                      }
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.currentTarget.classList.remove("slot-hover");
+                        const id = e.dataTransfer.getData("text/plain");
+                        if (id)
+                          void send({
+                            type: "groupSlot",
+                            group: g.id,
+                            column: i,
+                            id,
+                          }).catch(() => {});
+                        close();
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (
+                          s &&
+                          (c.settings.groupMode !== "group-only" || e.ctrlKey)
+                        )
+                          open(s, e.ctrlKey);
+                        else {
+                          close();
+                          void send({ type: "activateGroup", id: g.id }).catch(
+                            () => {},
+                          );
+                        }
+                      }}
+                      onDoubleClick={(e) => {
+                        if (s && c.settings.groupMode === "group-only") {
+                          e.stopPropagation();
+                          open(s);
+                        }
+                      }}
+                      onContextMenu={(e) => {
+                        if (s) {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          close();
+                          setContext({ id: s.id, x: e.clientX });
+                        }
+                      }}
+                    >
+                      {s ? (
+                        <Icon service={s} />
+                      ) : (
+                        <span className="slot-glow" />
+                      )}
+                    </button>
+                  );
+                })}
+            </div>
           ))}
           {groups.primary.map(renderService)}
           {groups.separator && (
@@ -637,7 +754,7 @@ function App() {
           </button>
         </div>
       </footer>
-      {(panel || context || edit || groupContext) && (
+      {(panel || context || edit || groupContext || iconGroup) && (
         <div
           className="scrim"
           style={{
@@ -667,6 +784,17 @@ function App() {
           >
             Gruppe anzeigen
           </button>
+          {c.settings.groupMode !== "group-only" && (
+            <button
+              onClick={() => {
+                const id = groupContext.id;
+                close();
+                setIconGroup(id);
+              }}
+            >
+              Gruppen-Icon wählen
+            </button>
+          )}
           <button
             onClick={() => {
               void send({ type: "deleteGroup", id: groupContext.id });
@@ -679,24 +807,14 @@ function App() {
       )}
       {panel === "layout" && (
         <div className="layout-menu popover">
-          <span className="eyebrow">DEIN WORKSPACE</span>
-          <button
-            className="save-group"
-            disabled={l.columns.some((col) => !col.active)}
-            onClick={() => {
-              void send({ type: "saveGroup" }).catch(() => {});
-              close();
-            }}
-          >
-            Als Gruppe speichern
-          </button>
+          <span className="eyebrow">Neue Gruppe erstellen</span>
           <div className="layout-options">
             {[1, 2, 3, 4].map((n) => (
               <button
                 key={n}
                 className={c.count === n ? "chosen" : ""}
                 onClick={() => {
-                  void send({ type: "layout", count: n });
+                  void send({ type: "createGroup", count: n }).catch(() => {});
                   close();
                 }}
               >
@@ -727,20 +845,7 @@ function App() {
                 setPanel(null);
                 setContext({ id: s.id, x: e.clientX });
               }}
-              onClick={() => {
-                if (c.activeGroup) {
-                  close();
-                  void send({ type: "solo", id: s.id }).catch(() => {});
-                  return;
-                }
-                void send({ type: "service", id: s.id, action: "start" })
-                  .then(() => {
-                    setPanel(null);
-                    if (c.count === 1) place(s.id, 0);
-                    else setChoose(s.id);
-                  })
-                  .catch(() => {});
-              }}
+              onClick={(e) => open(s, e.ctrlKey)}
             >
               <Icon service={s} />
               <span>{s.name}</span>
@@ -763,6 +868,46 @@ function App() {
                   ),
                 }}
               >
+                {c.count > 1 &&
+                  !groupedIds.has(s.id) &&
+                  l.columns.every((col) => col.active) &&
+                  l.columns.some((col) => col.active === s.id) && (
+                    <button
+                      onClick={() => {
+                        void send({ type: "saveGroup" }).catch(() => {});
+                        close();
+                      }}
+                    >
+                      Als Gruppe speichern
+                    </button>
+                  )}
+                {c.settings.groupMode !== "group-only" &&
+                  groupedIds.has(s.id) && (
+                    <button
+                      onClick={() => {
+                        const g = c.groups.find((g) =>
+                          groupIds(g.layout).includes(s.id),
+                        )!;
+                        close();
+                        setIconGroup(g.id);
+                      }}
+                    >
+                      Gruppen-Icon wählen
+                    </button>
+                  )}
+                {c.groups.some((g) => groupIds(g.layout).includes(s.id)) && (
+                  <button
+                    onClick={() => {
+                      const g = c.groups.find((g) =>
+                        groupIds(g.layout).includes(s.id),
+                      )!;
+                      void send({ type: "deleteGroup", id: g.id });
+                      close();
+                    }}
+                  >
+                    Gruppe löschen
+                  </button>
+                )}
                 <div className="context-heading">
                   <Icon service={s} />
                   <div>
@@ -846,7 +991,6 @@ function App() {
               return (
                 <button
                   key={s.id}
-                  disabled={exists}
                   onClick={() =>
                     void send({ type: "addKnown", id: s.id })
                       .then(() => setPanel("settings"))
@@ -855,7 +999,7 @@ function App() {
                 >
                   <Icon service={s} />
                   <span>{s.name}</span>
-                  {exists && <small>Vorhanden</small>}
+                  {exists && <small>Weitere Instanz hinzufügen</small>}
                 </button>
               );
             })}
@@ -875,6 +1019,32 @@ function App() {
               Neu laden
             </button>
           </div>
+        </div>
+      )}
+      {iconGroup && (
+        <div
+          className="modal group-icon-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Gruppen-Icon wählen"
+        >
+          <div className="modal-heading">
+            <h2>Gruppen-Icon wählen</h2>
+            <button title="Schließen" onClick={close}>
+              <X size={20} />
+            </button>
+          </div>
+          <GroupIconPicker
+            selected={
+              c.groups.find((g) => g.id === iconGroup)?.icon ?? "columns"
+            }
+            onSelect={(icon) => {
+              void send({ type: "groupIcon", id: iconGroup, icon })
+                .then(close)
+                .catch(() => {});
+            }}
+          />
+          <small>Lucide · ISC-Lizenz</small>
         </div>
       )}
       {(panel === "add" || edit) && (
@@ -978,22 +1148,20 @@ function ServiceDialog({
               onChange={(e) => field("name", e.target.value)}
             />
           </label>
-          <label>
-            Session-Profil
+          <label className="check">
             <input
-              required
-              pattern={"[a-zA-Z0-9_\\-]{1,64}"}
-              list="profiles"
-              value={s.profile}
-              disabled={!!initial?.running}
-              onChange={(e) => field("profile", e.target.value)}
+              type="checkbox"
+              role="switch"
+              checked={s.globalAccess}
+              onChange={(e) => field("globalAccess", e.target.checked)}
             />
-            <datalist id="profiles">
-              {[...new Set(services.map((s) => s.profile))].map((p) => (
-                <option key={p} value={p} />
-              ))}
-            </datalist>
+            Globalen Zugriff erlauben
           </label>
+          <p className="note full">
+            Aktivierte Dienste teilen Cookies und Anmeldungen wie Tabs in einem
+            Browser. Andere Instanzen bleiben getrennt. Beim Wechsel wird dieser
+            Dienst neu gestartet; das bisherige Profil bleibt erhalten.
+          </p>
           <label className="full">
             Start-URL
             <input
@@ -1008,7 +1176,7 @@ function ServiceDialog({
         </div>
         {initial?.running && (
           <p className="note">
-            Für URL- und Profilwechsel den Dienst zuerst stoppen.
+            Für einen URL-Wechsel den Dienst zuerst stoppen.
           </p>
         )}
         <label className="check">
@@ -1106,7 +1274,8 @@ function ServiceDialog({
         </h3>
         <p className="note">
           Nur für den Ursprung der Start-URL. Bildschirmfreigabe fragt immer
-          nach einer Quelle. Gleiche Profilnamen teilen Anmeldedaten.
+          nach einer Quelle. Global aktivierte Dienste teilen Anmeldedaten;
+          Website-Zugriffsgrenzen bleiben bestehen.
         </p>
         <div className="form-grid">
           {(
@@ -1210,11 +1379,13 @@ function SettingsDialog({
   const [tab, setTab] = useState("Allgemein"),
     [settings, setSettings] = useState({ ...state.config.settings });
   const [sidebar, setSidebar] = useState({
+    weatherLocation: state.config.sidebar.weatherLocation,
     background: state.config.sidebar.background,
     widgetBackground: state.config.sidebar.widgetBackground,
     textColor: state.config.sidebar.textColor,
     widgets: [...state.config.sidebar.widgets],
   });
+  const [weatherEdit, setWeatherEdit] = useState(false);
   const [sortId, setSortId] = useState<string | null>(null);
   const [dropAt, setDropAt] = useState<number | null>(null);
   const fields = {
@@ -1247,15 +1418,17 @@ function SettingsDialog({
         </button>
       </div>
       <div className="settings-tabs">
-        {["Allgemein", "Layout", "Dienste", "Sidebar", "Erweitert"].map((t) => (
-          <button
-            key={t}
-            className={tab === t ? "selected" : ""}
-            onClick={() => setTab(t)}
-          >
-            {t}
-          </button>
-        ))}
+        {["Allgemein", "Aussehen", "Dienste", "Sidebar", "Erweitert"].map(
+          (t) => (
+            <button
+              key={t}
+              className={tab === t ? "selected" : ""}
+              onClick={() => setTab(t)}
+            >
+              {t}
+            </button>
+          ),
+        )}
       </div>
       <div className="settings-content">
         {tab === "Allgemein" && (
@@ -1288,8 +1461,64 @@ function SettingsDialog({
               ))}
           </>
         )}
-        {tab === "Layout" && (
+        {tab === "Aussehen" && (
           <>
+            <label className="setting-row">
+              Gruppen-Modus
+              <select
+                aria-label="Gruppen-Modus"
+                value={settings.groupMode}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    groupMode: e.target.value as typeof settings.groupMode,
+                  })
+                }
+              >
+                <option value="icon-group">Icon + Gruppe</option>
+                <option value="group-only">Nur Gruppe</option>
+                <option value="icon-only">Nur Icon</option>
+              </select>
+            </label>
+            <h3>Aussehen</h3>
+            {(
+              [
+                ["background", "Hintergrund der Sidebar"],
+                ["widgetBackground", "Hintergrund der Widgets"],
+                ["textColor", "Schriftfarbe"],
+              ] as const
+            ).map(([key, label]) => (
+              <label className="setting-row" key={key}>
+                {label}
+                <input
+                  type="color"
+                  aria-label={label}
+                  value={sidebar[key]}
+                  onChange={(e) =>
+                    setSidebar({ ...sidebar, [key]: e.target.value })
+                  }
+                />
+              </label>
+            ))}
+            {(
+              [
+                ["accentColor", "Akzentfarbe"],
+                ["dockColor", "Hintergrund des Docks"],
+              ] as const
+            ).map(([key, label]) => (
+              <label className="setting-row" key={key}>
+                {label}
+                <input
+                  type="color"
+                  aria-label={label}
+                  value={settings[key]}
+                  onChange={(e) =>
+                    setSettings({ ...settings, [key]: e.target.value })
+                  }
+                />
+              </label>
+            ))}
+
             {(
               [
                 "showColumnTabs",
@@ -1426,27 +1655,20 @@ function SettingsDialog({
         )}
         {tab === "Sidebar" && (
           <div className="sidebar-settings">
-            <h3>Aussehen</h3>
-            {(
-              [
-                ["background", "Hintergrund der Sidebar"],
-                ["widgetBackground", "Hintergrund der Widgets"],
-                ["textColor", "Schriftfarbe"],
-              ] as const
-            ).map(([key, label]) => (
-              <label className="setting-row" key={key}>
-                {label}
-                <input
-                  type="color"
-                  aria-label={label}
-                  value={sidebar[key]}
-                  onChange={(e) =>
-                    setSidebar({ ...sidebar, [key]: e.target.value })
-                  }
-                />
-              </label>
-            ))}
             <h3>Widgets</h3>
+            {weatherEdit && (
+              <LocationChooser
+                api={api}
+                onClose={() => setWeatherEdit(false)}
+                onSelect={(location) => {
+                  setSidebar({ ...sidebar, weatherLocation: location });
+                  setWeatherEdit(false);
+                }}
+              />
+            )}
+            {sidebar.weatherLocation && (
+              <p className="note">Wetter: {sidebar.weatherLocation.name}</p>
+            )}
             {(
               [
                 ["clock", "Uhr und Datum"],
@@ -1455,10 +1677,25 @@ function SettingsDialog({
                 ["mixer", "Windows-Lautstärkemixer"],
                 ["notes", "Notizen"],
                 ["calendar", "Kalender"],
+                ["weather", "Wetter"],
               ] as const
             ).map(([id, label]) => (
               <label className="setting-row" key={id}>
-                {label}
+                <span>
+                  {label}{" "}
+                  {id === "weather" && (
+                    <button
+                      type="button"
+                      title="Wetterstandort einstellen"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setWeatherEdit(!weatherEdit);
+                      }}
+                    >
+                      <Settings size={16} />
+                    </button>
+                  )}
+                </span>
                 <input
                   type="checkbox"
                   aria-label={label}
@@ -1479,6 +1716,25 @@ function SettingsDialog({
         {tab === "Erweitert" && (
           <>
             <p>IndigoDock {state.version}</p>
+            <div className="credits">
+              <button
+                onClick={() => void send({ type: "infoLink", page: "icons" })}
+              >
+                Gruppen-Icons: Lucide · ISC-Lizenz
+              </button>
+              <button
+                onClick={() => void send({ type: "infoLink", page: "weather" })}
+              >
+                Wetterdaten: Open-Meteo
+              </button>
+              <button
+                onClick={() =>
+                  void send({ type: "infoLink", page: "weatherLicense" })
+                }
+              >
+                Wetterlizenz: CC BY 4.0 · Temperaturen gerundet
+              </button>
+            </div>
             <div className="update-panel">
               <p role="status">
                 {state.update?.message || "Updates über GitHub Releases"}

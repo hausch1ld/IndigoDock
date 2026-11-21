@@ -1,8 +1,8 @@
 {
   "name": "indigodock",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "private": true,
-  "description": "Modulare Multi-Service-Desktop-App für Windows",
+  "description": "Customizable multi-service desktop workspace for Windows",
   "author": "hausch1ld",
   "license": "MIT",
   "main": "dist/main.cjs",
@@ -14,7 +14,8 @@
     "dist": "npm run build && electron-builder --win nsis portable --publish never",
     "start": "electron .",
     "postinstall": "node node_modules/electron/install.js",
-    "dist:dir": "npm run build && electron-builder --win --dir"
+    "dist:dir": "npm run build && electron-builder --win --dir",
+    "check:privacy": "node scripts/check-privacy.mjs"
   },
   "dependencies": {
     "electron-updater": "^6.8.11",

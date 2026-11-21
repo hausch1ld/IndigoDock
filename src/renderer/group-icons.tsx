@@ -1,3 +1,4 @@
+import { t, locale, setLanguage } from "../shared/i18n";
 import React from "react";
 import {
   Columns3,
@@ -53,30 +54,30 @@ const icons = {
   layers: Layers,
 };
 const labels: Record<GroupIconId, string> = {
-  columns: "Spalten",
-  heart: "Herz",
-  star: "Stern",
-  home: "Zuhause",
-  work: "Arbeit",
+  columns: "Columns",
+  heart: "Heart",
+  star: "Star",
+  home: "Home",
+  work: "Work",
   chat: "Chat",
-  music: "Musik",
-  game: "Spiele",
-  mail: "Post",
+  music: "Music",
+  game: "Games",
+  mail: "Mail",
   video: "Video",
   code: "Code",
   globe: "Internet",
-  book: "Lesen",
-  camera: "Kamera",
+  book: "Reading",
+  camera: "Camera",
   coffee: "Pause",
-  folder: "Ordner",
-  rocket: "Rakete",
-  sun: "Sonne",
-  moon: "Mond",
-  calendar: "Kalender",
+  folder: "Folder",
+  rocket: "Rocket",
+  sun: "Sun",
+  moon: "Moon",
+  calendar: "Calendar",
   users: "Team",
-  shopping: "Einkaufen",
-  tools: "Werkzeuge",
-  layers: "Ebenen",
+  shopping: "Shopping",
+  tools: "Tools",
+  layers: "Layers",
 };
 export function GroupIcon({
   id,
@@ -101,13 +102,13 @@ export function GroupIconPicker({
         <button
           key={id}
           type="button"
-          title={labels[id]}
-          aria-label={labels[id]}
+          title={t(labels[id])}
+          aria-label={t(labels[id])}
           aria-pressed={selected === id}
           onClick={() => onSelect(id)}
         >
           <GroupIcon id={id} size={24} />
-          <span>{labels[id]}</span>
+          <span>{t(labels[id])}</span>
         </button>
       ))}
     </div>

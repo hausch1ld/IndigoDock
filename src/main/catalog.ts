@@ -31,7 +31,7 @@ export class Catalog {
       this.error = "";
     } catch {
       this.error =
-        "Dienstkatalog ungültig. JSON, eindeutige IDs und URLs prüfen.";
+        "Invalid service catalog. Check JSON, unique IDs and URLs.";
     }
   }
 }

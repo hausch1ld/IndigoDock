@@ -7,7 +7,7 @@ export function selectApps(c: Config, ids: string[]) {
     new Set(ids).size !== ids.length ||
     ids.some((id) => !c.services.some((s) => s.id === id))
   )
-    throw Error("Ungültige Auswahl");
+    throw Error("Invalid selection");
   c.count = ids.length;
   c.activeGroup = null;
   c.layouts[c.count] = {
@@ -16,12 +16,12 @@ export function selectApps(c: Config, ids: string[]) {
   };
 }
 export function createEmptyGroup(c: Config, id: string, count: number) {
-  if (c.groups.length >= 100) throw Error("Maximal 100 Gruppen.");
+  if (c.groups.length >= 100) throw Error("A maximum of 100 groups is supported.");
   const layout = emptyLayout(count);
   c.groups.push({
     id,
     icon: "columns",
-    name: `Workspace mit ${count} ${count === 1 ? "Spalte" : "Spalten"}`,
+    name: `Workspace mit ${count} ${count === 1 ? "Column" : "Columns"}`,
     layout,
   });
   activateGroup(c, id);
@@ -34,7 +34,7 @@ export function fillGroupSlot(
 ) {
   const g = c.groups.find((g) => g.id === group);
   if (!g || !g.layout.columns[column] || !c.services.some((s) => s.id === id))
-    throw Error("Ungültiger Gruppenplatz");
+    throw Error("Invalid group slot");
   // Move the instance out of other groups, keeping their empty slots available.
   for (const other of c.groups)
     for (const col of other.layout.columns) {
@@ -53,7 +53,7 @@ export function groupIds(layout: Layout): string[] {
 export function saveGroup(c: Config, id: string) {
   const layout = structuredClone(c.layouts[c.count]);
   if (layout.columns.some((col) => !col.active))
-    throw Error("Bitte jeder Spalte zuerst einen Dienst zuweisen.");
+    throw Error("Assign a service to every column first.");
   for (const col of layout.columns)
     col.services = col.active ? [col.active] : [];
   const members = groupIds(layout);
@@ -75,7 +75,7 @@ export function saveGroup(c: Config, id: string) {
 }
 export function activateGroup(c: Config, id: string) {
   const group = c.groups.find((g) => g.id === id);
-  if (!group) throw Error("Gruppe nicht gefunden.");
+  if (!group) throw Error("Group not found.");
   c.count = group.layout.columns.length;
   c.layouts[c.count] = structuredClone(group.layout);
   c.activeGroup = id;

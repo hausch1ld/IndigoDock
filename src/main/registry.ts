@@ -31,6 +31,8 @@ export function defaults(): Config {
     count: 1,
     layouts: { 1: emptyLayout(1) },
     settings: {
+      language: "en",
+      fontSize: 16,
       groupMode: "icon-group",
       accentColor: "#75d9c4",
       dockColor: "#101416",

@@ -1,3 +1,5 @@
+import { translate } from "../shared/i18n";
+import { appPrompt } from "./prompt";
 import { Weather } from "./weather";
 import { sessionProfile, newInstance } from "../shared/profiles";
 import { selectApps, createEmptyGroup, fillGroupSlot } from "../shared/groups";
@@ -85,7 +87,7 @@ function trusted(e: Electron.IpcMainInvokeEvent) {
     e.senderFrame !== ui.webContents.mainFrame ||
     e.senderFrame.url !== uiURL
   )
-    throw Error("Nicht autorisierter IPC-Absender");
+    throw Error("Unauthorized IPC sender");
 }
 function layout() {
   const b = win.getContentBounds();
@@ -201,8 +203,8 @@ async function main() {
       case "addKnown": {
         catalog.reload();
         const template = catalog.services.find((s) => s.id === cmd.id);
-        if (!template) throw Error("Dienst fehlt im Katalog.");
-        if (c.services.length >= 100) throw Error("Maximal 100 Dienste.");
+        if (!template) throw Error("Service not found in catalog.");
+        if (c.services.length >= 100) throw Error("A maximum of 100 services is supported.");
         c.services.push(newInstance(template, randomUUID(), c.services));
         break;
       }
@@ -220,7 +222,7 @@ async function main() {
         for (const id of ids) {
           const s = c.services.find((s) => s.id === id);
           if (!s || !validUrl(s.url, s.allowHttp))
-            throw Error("Dienst hat keine gültige URL.");
+            throw Error("The service has no valid URL.");
         }
         selectApps(c, ids);
         for (const id of ids) {
@@ -235,14 +237,14 @@ async function main() {
       case "groupSlot": {
         const s = c.services.find((s) => s.id === cmd.id);
         if (!s || !validUrl(s.url, s.allowHttp))
-          throw Error("Dienst hat keine gültige URL.");
+          throw Error("The service has no valid URL.");
         fillGroupSlot(c, cmd.group, cmd.column, cmd.id);
         if (!s.running) views.start(s);
         break;
       }
       case "groupIcon": {
         const group = c.groups.find((g) => g.id === cmd.id);
-        if (!group) throw Error("Gruppe fehlt");
+        if (!group) throw Error("Group not found");
         group.icon = cmd.icon;
         break;
       }
@@ -260,11 +262,11 @@ async function main() {
         break;
       case "activateGroup": {
         const members = c.groups.find((g) => g.id === cmd.id);
-        if (!members) throw Error("Gruppe fehlt");
+        if (!members) throw Error("Group not found");
         for (const id of groupIds(members.layout)) {
           const s = c.services.find((s) => s.id === id);
           if (!s || (s.kind !== "widgets" && !validUrl(s.url, s.allowHttp)))
-            throw Error("Ein Dienst der Gruppe hat keine gültige URL.");
+            throw Error("A service in this group has no valid URL.");
         }
         for (const id of activateGroup(c, cmd.id)) {
           const s = c.services.find((s) => s.id === id)!;
@@ -277,7 +279,7 @@ async function main() {
         break;
       case "solo": {
         const s = c.services.find((s) => s.id === cmd.id);
-        if (!s) throw Error("Dienst fehlt");
+        if (!s) throw Error("Service not found");
         if (!s.running) views.start(s);
         c.count = 1;
         c.layouts[1] = {
@@ -292,7 +294,7 @@ async function main() {
         changeLayout(c, cmd.count);
         break;
       case "ratios":
-        if (cmd.ratios.length !== c.count) throw Error("Ungültige Breiten");
+        if (cmd.ratios.length !== c.count) throw Error("Invalid widths");
         {
           const total = cmd.ratios.reduce((a, b) => a + b, 0);
           c.layouts[c.count].ratios = cmd.ratios.map((x) => x / total);
@@ -300,9 +302,9 @@ async function main() {
         break;
       case "assign": {
         const s = c.services.find((s) => s.id === cmd.id);
-        if (!s) throw Error("Dienst fehlt");
+        if (!s) throw Error("Service not found");
         if (!c.layouts[c.count].columns[cmd.column])
-          throw Error("Ungültige Spalte");
+          throw Error("Invalid column");
         if (cmd.startIfStopped && !s.running) views.start(s);
         assign(c.layouts[c.count], s.id, cmd.column);
         break;
@@ -314,10 +316,10 @@ async function main() {
         const s = cmd.service;
         if (s.url && !validUrl(s.url, s.allowHttp))
           throw Error(
-            "Nur HTTPS oder ausdrücklich erlaubtes HTTP, ohne Zugangsdaten in der URL.",
+            "Use HTTPS or explicitly allowed HTTP, without credentials in the URL.",
           );
         if (!safeIcon(s.icon))
-          throw Error("Ungültiges Icon. PNG, JPEG oder WebP verwenden.");
+          throw Error("Invalid icon. Use PNG, JPEG or WebP.");
         const old = c.services.find((x) => x.id === s.id);
         if (
           old &&
@@ -331,9 +333,9 @@ async function main() {
           (sessionProfile(old) !== sessionProfile(s) || old.url !== s.url) &&
           views.views.has(old.id)
         )
-          throw Error("Dienst vor URL- oder Profilwechsel stoppen.");
+          throw Error("Stop the service before changing its URL or profile.");
         if (!old && c.services.length >= 100)
-          throw Error("Maximal 100 Dienste.");
+          throw Error("A maximum of 100 services is supported.");
         // Current URL is trusted only from the existing native view, never from renderer edits.
         s.currentUrl =
           old && old.url === s.url && sessionProfile(old) === sessionProfile(s)
@@ -351,10 +353,10 @@ async function main() {
       }
       case "service": {
         const s = c.services.find((s) => s.id === cmd.id);
-        if (!s) throw Error("Dienst fehlt");
+        if (!s) throw Error("Service not found");
         const wc = views.views.get(s.id)?.webContents;
         if (cmd.action === "hideElement") {
-          if (!s.running) throw Error("Dienst zuerst starten.");
+          if (!s.running) throw Error("Start the service first.");
           if (!c.layouts[c.count].columns.some((col) => col.active === s.id)) {
             c.count = 1;
             c.layouts[1] = {
@@ -381,11 +383,11 @@ async function main() {
         if (cmd.action === "external")
           await views.external(s.currentUrl || s.url);
         if (cmd.action === "remove") {
-          const r = await dialog.showMessageBox(win, {
+          const r = await appPrompt(win, c, {
             type: "question",
-            message: `${s.name} entfernen?`,
-            detail: "Das Session-Profil bleibt gespeichert.",
-            buttons: ["Abbrechen", "Entfernen"],
+            message: `Remove ${s.name}?`,
+            detail: "The session profile will be preserved.",
+            buttons: ["Cancel", "Remove"],
             cancelId: 0,
           });
           if (r.response !== 1) break;
@@ -403,11 +405,11 @@ async function main() {
           const group = c.services.filter(
             (x) => sessionProfile(x) === sessionProfile(s),
           );
-          const r = await dialog.showMessageBox(win, {
+          const r = await appPrompt(win, c, {
             type: "warning",
-            message: `Profil „${s.profile}“ löschen und abmelden?`,
-            detail: `Betroffen: ${group.map((s) => s.name).join(", ")}. Die Dienste werden gestoppt.`,
-            buttons: ["Abbrechen", "Profildaten löschen"],
+            message: `Clear profile “${s.profile}” and sign out?`,
+            detail: `Affected: ${group.map((s) => s.name).join(", ")}. These services will be stopped.`,
+            buttons: ["Cancel", "Clear profile data"],
             defaultId: 0,
             cancelId: 0,
           });
@@ -432,7 +434,7 @@ async function main() {
           new Set(cmd.ids).size !== c.services.length ||
           cmd.ids.some((id) => !c.services.some((s) => s.id === id))
         )
-          throw Error("Ungültige Reihenfolge");
+          throw Error("Invalid order");
         c.services = cmd.ids.map((id) => c.services.find((s) => s.id === id)!);
         break;
       case "settings":
@@ -455,7 +457,7 @@ async function main() {
         break;
       case "diagnostics":
         if (cmd.action === "logs") {
-          log("Diagnose geöffnet");
+          log("Diagnostics opened");
           await shell.openPath(
             path.join(app.getPath("userData"), "diagnostics.log"),
           );
@@ -539,7 +541,7 @@ async function main() {
   tray.setContextMenu(
     Menu.buildFromTemplate([
       {
-        label: "IndigoDock öffnen",
+        label: translate("Open IndigoDock", c.settings.language),
         click: () => {
           win.show();
           win.focus();
@@ -547,7 +549,7 @@ async function main() {
       },
       { type: "separator" },
       {
-        label: "Beenden",
+        label: translate("Quit", c.settings.language),
         click: () => {
           quitting = true;
           app.quit();
@@ -569,7 +571,7 @@ async function main() {
       try {
         views.start(s);
       } catch {
-        views.status[s.id] = { state: "error", error: "Dienst-URL prüfen." };
+        views.status[s.id] = { state: "error", error: "Check the service URL." };
       }
       await new Promise((r) => setTimeout(r, 120));
     }
@@ -590,13 +592,13 @@ else {
         try {
           await components.whenReady();
         } catch {
-          log("Widevine-Komponenten konnten nicht geladen werden.");
+          log("Could not load Widevine components.");
         }
       }
       await main();
     })
     .catch((e) => {
-      dialog.showErrorBox("IndigoDock konnte nicht starten", String(e));
+      dialog.showErrorBox("IndigoDock could not start", String(e));
       app.exit(1);
     });
   let sessionsSaved = false;
@@ -625,7 +627,7 @@ else {
         .then((results) => {
           if (results.some((r) => r.status === "rejected"))
             log(
-              "Session konnte beim Beenden nicht vollständig geschrieben werden.",
+              "Could not fully save session data while quitting.",
             );
           sessionsSaved = true;
           app.quit();
@@ -637,7 +639,7 @@ else {
       try {
         store.flush();
       } catch {
-        log("Konfiguration konnte beim Beenden nicht gespeichert werden.");
+        log("Could not save configuration while quitting.");
       }
     }
   });

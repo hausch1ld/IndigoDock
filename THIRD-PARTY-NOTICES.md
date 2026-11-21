@@ -1,13 +1,13 @@
-# Drittanbieter und Marken
+# Third-party notices and trademarks
 
-IndigoDock verwendet Electron/Chromium, React, Zod, Lucide, Vite, esbuild, electron-builder, electron-updater und weitere im Lockfile aufgeführte Pakete. Die Laufzeitdistribution enthält die Electron-Lizenz und `LICENSES.chromium.html`. Die jeweiligen Paketlizenzen gelten zusätzlich.
+IndigoDock uses Electron/Chromium, React, Zod, Lucide, Vite, esbuild, electron-builder, electron-updater and dependencies listed in package-lock.json. Runtime distributions include the Electron license and LICENSES.chromium.html. Each dependency's license also applies.
 
-Die mitgelieferten Dienstlogos stammen aus dem Paket [Simple Icons](https://simpleicons.org/) (CC0 für die Icon-Sammlung). Markenrechte verbleiben bei Discord, Valve/Steam, Apple, Google, Spotify, Meta, Home Assistant und X sowie den jeweiligen Rechteinhabern. Die Logos dienen ausschließlich zur Identifikation der konfigurierten Dienste. IndigoDock ist kein offizieller Client dieser Anbieter und nicht mit ihnen verbunden.
+Bundled service logos come from [Simple Icons](https://simpleicons.org/), whose icon collection is CC0. Trademarks remain owned by their respective holders, including Discord, Valve/Steam, Apple, Google, Spotify, Meta, Home Assistant and X. Logos identify configured services; IndigoDock is not affiliated with these providers.
 
-Das IndigoDock-Symbol wurde vom Projektinhaber bereitgestellt und für PNG/ICO skaliert.
+The IndigoDock application icon was supplied by the project owner and resized for PNG/ICO use.
 
-Gruppen-Icons: Lucide, ISC-Lizenz, einschließlich Feather-Anteilen unter MIT. Vollständiger Lizenzhinweis in `public/lucide-LICENSE.txt`, in der Distribution unter `dist/ui/lucide-LICENSE.txt`. Quelle: https://lucide.dev/license.
+Group icons use [Lucide](https://lucide.dev/license), under ISC with Feather portions under MIT. The full notice is in public/lucide-LICENSE.txt and distributed at dist/ui/lucide-LICENSE.txt.
 
-Wetterdaten: Open-Meteo, CC BY 4.0, https://open-meteo.com/ und https://creativecommons.org/licenses/by/4.0/. Temperaturwerte werden für die Anzeige gerundet. Der Quellenhinweis mit Anbieter- und Lizenzlink steht direkt unter dem Standort im Wetterwidget. Keine API-Zugangsdaten erforderlich; der öffentliche Endpunkt ist für nichtkommerzielle Nutzung vorgesehen.
+Weather data is provided by [Open-Meteo](https://open-meteo.com/) under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Displayed temperatures are rounded. Provider and license links appear directly below the location in the widget. No API credential is required; the public endpoint is intended for non-commercial use.
 
-Widevine und andere proprietäre DRM-Komponenten werden nicht mitgeliefert.
+Widevine and other proprietary DRM components are not included in the source repository. Runtime component management and streaming signing are subject to the applicable provider terms.

@@ -44,7 +44,7 @@ export function changeLayout(config: Config, count: number) {
   normalize(config.layouts[count], new Set(config.services.map((s) => s.id)));
 }
 export function assign(layout: Layout, id: string, column: number) {
-  if (!layout.columns[column]) throw Error("Ungültige Spalte");
+  if (!layout.columns[column]) throw Error("Invalid column");
   for (const c of layout.columns) {
     c.services = c.services.filter((x) => x !== id);
     if (c.active === id) c.active = c.services.at(-1) ?? null;

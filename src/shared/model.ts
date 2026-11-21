@@ -68,6 +68,8 @@ export const layoutSchema = z.object({
 });
 export type Layout = z.infer<typeof layoutSchema>;
 export const settingsSchema = z.object({
+  language: z.enum(["en", "de"]).default("en"),
+  fontSize: z.number().int().min(14).max(20).default(16),
   groupMode: z
     .enum(["icon-group", "group-only", "icon-only"])
     .default("icon-group"),

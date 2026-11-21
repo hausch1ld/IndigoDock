@@ -1,3 +1,4 @@
+import { t, locale, setLanguage } from "../shared/i18n";
 import { GroupIcon, GroupIconPicker } from "./group-icons";
 import { LocationChooser } from "./weather";
 import { sidebarWidth } from "../shared/sidebar";
@@ -38,7 +39,7 @@ declare global {
   }
 }
 const api = window.multidock;
-const Clock = memo(function Clock() {
+const Clock = memo(function Clock({ language }: { language: string }) {
   const [now, setNow] = useState(new Date());
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
@@ -58,14 +59,14 @@ const Clock = memo(function Clock() {
   return (
     <time>
       <strong>
-        {now.toLocaleTimeString("de-DE", {
+        {now.toLocaleTimeString(locale(), {
           hour: "2-digit",
           minute: "2-digit",
           hour12: false,
         })}
       </strong>
       <span>
-        {now.toLocaleDateString("de-DE", { day: "numeric", month: "short" })}
+        {now.toLocaleDateString(locale(), { day: "numeric", month: "short" })}
       </span>
     </time>
   );
@@ -92,6 +93,7 @@ function App() {
   const [panel, setPanel] = useState<
     "layout" | "settings" | "add" | "known" | "inactive" | null
   >(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [iconGroup, setIconGroup] = useState<string | null>(null);
   const [edit, setEdit] = useState<Service | null>(null);
   const [groupContext, setGroupContext] = useState<{
@@ -129,6 +131,7 @@ function App() {
     return () => window.removeEventListener("resize", resize);
   }, []);
   const close = () => {
+    setSettingsOpen(false);
     setIconGroup(null);
     setDockDrop(null);
     setGroupContext(null);
@@ -140,6 +143,7 @@ function App() {
     setHover(null);
   };
   const overlay = !!(
+    settingsOpen ||
     panel ||
     iconGroup ||
     edit ||
@@ -155,13 +159,18 @@ function App() {
   }, [overlay]);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
+      if (e.key === "Escape") {
+        if (settingsOpen && (panel === "known" || panel === "add" || edit)) { setEdit(null); setPanel("settings"); }
+        else close();
+      }
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
-  }, []);
+  }, [panel, settingsOpen, edit]);
+  setLanguage(state?.config.settings.language ?? "en");
+  document.documentElement.lang = state?.config.settings.language ?? "en";
   if (!state)
-    return <main className="boot">IndigoDock {error || "startet …"}</main>;
+    return <main className="boot">IndigoDock {error || "starting …"}</main>;
   const c = state.config,
     l = c.layouts[c.count],
     ratios = draftRatios ?? l.ratios,
@@ -202,7 +211,7 @@ function App() {
         : [...current, s.id]
       : [s.id];
     if (ids.length > 4) {
-      setError("Maximal vier Apps gleichzeitig auswählen.");
+      setError(t("Select up to four apps at once."));
       return;
     }
     if (ids.length) void send({ type: "selectApps", ids }).catch(() => {});
@@ -278,7 +287,7 @@ function App() {
       <button
         aria-label={s.name}
         key={s.id}
-        title={`${s.name} · ${s.running ? "Gestartet" : "Gestoppt"}${s.muted ? " · Stumm" : ""}`}
+        title={`${s.name} · ${s.running ? t("Running") : t("Stopped")}${s.muted ? " · Stumm" : ""}`}
         className={`service ${active ? "active" : ""} ${s.running ? "running" : "stopped"} ${dockDrop?.id === s.id ? (dockDrop.after ? "dock-drop-after" : "dock-drop-before") : ""}`}
         draggable
         onDragStart={(e) => dragStart(e, s)}
@@ -327,6 +336,7 @@ function App() {
     <div
       style={
         {
+          "--ui-font-size": `${c.settings.fontSize}px`,
           "--accent": c.settings.accentColor,
           "--dock-color": c.settings.dockColor,
           "--text": c.sidebar.textColor,
@@ -344,32 +354,33 @@ function App() {
           <img className="app-logo" src="./icons/indigodock.png" alt="" />
           IndigoDock
         </div>
-        <div className="titlebar-clock">{!c.sidebar.open && <Clock />}</div>
+        <div className="titlebar-clock">{!c.sidebar.open && <Clock language={c.settings.language} />}</div>
         <div className="window-actions">
           <button
-            title="Einstellungen"
+            title={t("Settings")}
             onClick={() => {
               close();
+              setSettingsOpen(true);
               setPanel("settings");
             }}
           >
             <Settings size={15} />
           </button>
           <button
-            title="Minimieren"
+            title={t("Minimize")}
             onClick={() => void send({ type: "window", action: "minimize" })}
           >
             <Minus size={16} />
           </button>
           <button
-            title="Maximieren / Wiederherstellen"
+            title={t("Maximize / Restore")}
             onClick={() => void send({ type: "window", action: "maximize" })}
           >
             <Square size={12} />
           </button>
           <button
             className="close-window"
-            title="Schließen"
+            title={t("Close")}
             onClick={() => void send({ type: "window", action: "close" })}
           >
             <X size={17} />
@@ -379,7 +390,7 @@ function App() {
       {c.sidebar.open && (
         <aside
           className="widget-sidebar"
-          aria-label="Widget-Sidebar"
+          aria-label={t("Widget sidebar")}
           style={{
             top: contentTop,
             bottom: contentBottom,
@@ -429,7 +440,7 @@ function App() {
                           >
                             <Icon service={tab} />
                             <span>{tab.name}</span>
-                            {tab.muted && <span>· stumm</span>}
+                            {tab.muted && <span>{t("· muted")}</span>}
                           </button>
                         )
                       );
@@ -437,7 +448,7 @@ function App() {
                   </div>
                   {s && (
                     <button
-                      title="Neu laden"
+                      title={t("Reload")}
                       disabled={!s.running}
                       onClick={() => action(s, "reload")}
                     >
@@ -458,7 +469,7 @@ function App() {
                           <Icon service={s} />
                         </div>
                         <h2>{s.name}</h2>
-                        <p>{status?.error || "Dieser Dienst ist gestoppt."}</p>
+                        <p>{t(status?.error || "This service is stopped.")}</p>
                         <button
                           className="primary"
                           onClick={() =>
@@ -470,13 +481,13 @@ function App() {
                           ) : (
                             <Play size={15} />
                           )}{" "}
-                          {s.running ? "Erneut versuchen" : "Dienst starten"}
+                          {s.running ? t("Try again") : t("Start service")}
                         </button>
                         <button
                           className="text-button"
                           onClick={() => action(s, "external")}
                         >
-                          Im Browser öffnen <ExternalLink size={13} />
+                          {t("Open in browser")}<ExternalLink size={13} />
                         </button>
                       </>
                     ) : (
@@ -484,8 +495,8 @@ function App() {
                         <div className="empty-symbol">
                           <Columns3 size={30} />
                         </div>
-                        <h1>{`Spalte ${i + 1}`}</h1>
-                        <p>Dienst hierher ziehen oder unten auswählen.</p>
+                        <h1>{t(`Column ${i + 1}`)}</h1>
+                        <p>{t("Drag a service here or select one below.")}</p>
                       </>
                     )}
                   </div>
@@ -498,7 +509,7 @@ function App() {
         {rects.slice(0, -1).map((b, i) => (
           <div
             role="separator"
-            aria-label={`Spaltentrenner ${i + 1}`}
+            aria-label={t(`Column divider ${i + 1}`)}
             aria-orientation="vertical"
             tabIndex={0}
             key={i}
@@ -562,8 +573,8 @@ function App() {
             >
               <span className="target-card">
                 <Columns3 size={24} />
-                <strong>Spalte {i + 1}</strong>
-                <small>{service(choose || drag)?.name} hier anzeigen</small>
+                <strong>{t("Column ")}{i + 1}</strong>
+                <small>{service(choose || drag)?.name} {t("show here")}</small>
               </span>
             </button>
           ))}
@@ -577,14 +588,14 @@ function App() {
         <div className="dock-left">
           <button
             className={"layout-trigger " + (panel === "layout" ? "active" : "")}
-            title="Gruppe erstellen"
+            title={t("Create group")}
             onClick={() => setPanel(panel === "layout" ? null : "layout")}
           >
             <Columns3 size={21} />
             <ChevronDown size={12} />
           </button>
         </div>
-        <nav className="services" aria-label="Dienste">
+        <nav className="services" aria-label={t("Services")}>
           {c.groups.map((g) => (
             <div
               key={g.id}
@@ -595,7 +606,7 @@ function App() {
                 (c.activeGroup === g.id ? "selected" : "")
               }
               role="group"
-              aria-label={"Gruppe: " + g.name}
+              aria-label={t("Group: ") + g.name}
               onContextMenu={(e) => {
                 e.preventDefault();
                 close();
@@ -628,8 +639,8 @@ function App() {
                       close();
                     }
                   }}
-                  title={"Gruppe anzeigen: " + g.name}
-                  aria-label={"Gruppe anzeigen: " + g.name}
+                  title={t("Show group: ") + g.name}
+                  aria-label={t("Show group: ") + g.name}
                   onClick={() => {
                     close();
                     void send({ type: "activateGroup", id: g.id }).catch(
@@ -650,11 +661,11 @@ function App() {
                       title={
                         s
                           ? c.settings.groupMode === "group-only"
-                            ? `${s.name} · Klick: Gruppe · Doppelklick: Einzelansicht`
-                            : `${s.name} · Klick: Einzelansicht · STRG: Mehrfachauswahl`
-                          : `App in Spalte ${i + 1} ziehen`
+                            ? t(`${s.name} · Click: group · Double-click: single view`)
+                            : t(`${s.name} · Click: single view · CTRL: multiple selection`)
+                          : t(`Drag an app into column ${i + 1}`)
                       }
-                      aria-label={s ? s.name : `Leerer Gruppenplatz ${i + 1}`}
+                      aria-label={s ? s.name : t(`Empty group slot ${i + 1}`)}
                       draggable={!!s}
                       onDragStart={(e) => {
                         if (s) dragStart(e, s);
@@ -728,8 +739,8 @@ function App() {
           {c.settings.hideInactive && groups.inactive.length > 0 && (
             <button
               className="inactive-trigger"
-              title="Inaktive Apps"
-              aria-label="Inaktive Apps"
+              title={t("Inactive apps")}
+              aria-label={t("Inactive apps")}
               onClick={() => setPanel(panel === "inactive" ? null : "inactive")}
             >
               <Menu size={21} />
@@ -739,7 +750,7 @@ function App() {
         <div className="dock-right">
           <button
             className="sidebar-trigger"
-            title={c.sidebar.open ? "Sidebar einklappen" : "Sidebar ausklappen"}
+            title={c.sidebar.open ? t("Collapse sidebar") : t("Expand sidebar")}
             aria-pressed={c.sidebar.open}
             onClick={() => {
               close();
@@ -782,8 +793,7 @@ function App() {
               close();
             }}
           >
-            Gruppe anzeigen
-          </button>
+            {t("Show group")}</button>
           {c.settings.groupMode !== "group-only" && (
             <button
               onClick={() => {
@@ -792,8 +802,7 @@ function App() {
                 setIconGroup(id);
               }}
             >
-              Gruppen-Icon wählen
-            </button>
+              {t("Choose group icon")}</button>
           )}
           <button
             onClick={() => {
@@ -801,18 +810,17 @@ function App() {
               close();
             }}
           >
-            Gruppe löschen
-          </button>
+            {t("Delete group")}</button>
         </div>
       )}
       {panel === "layout" && (
         <div className="layout-menu popover">
-          <span className="eyebrow">Neue Gruppe erstellen</span>
+          <span className="eyebrow">{t("Create new group")}</span>
           <div className="layout-options">
             {[1, 2, 3, 4].map((n) => (
               <button
                 key={n}
-                className={c.count === n ? "chosen" : ""}
+                className=""
                 onClick={() => {
                   void send({ type: "createGroup", count: n }).catch(() => {});
                   close();
@@ -824,7 +832,7 @@ function App() {
                   ))}
                 </span>
                 <span>
-                  {n} {n === 1 ? "Spalte" : "Spalten"}
+                  {n} {n === 1 ? t("Column") : t("Columns")}
                 </span>
               </button>
             ))}
@@ -833,7 +841,7 @@ function App() {
       )}
       {panel === "inactive" && (
         <div className="inactive-menu popover">
-          <h3>Inaktive Apps</h3>
+          <h3>{t("Inactive apps")}</h3>
           {groups.inactive.map((s) => (
             <button
               key={s.id}
@@ -878,8 +886,7 @@ function App() {
                         close();
                       }}
                     >
-                      Als Gruppe speichern
-                    </button>
+                      {t("Save as group")}</button>
                   )}
                 {c.settings.groupMode !== "group-only" &&
                   groupedIds.has(s.id) && (
@@ -892,8 +899,7 @@ function App() {
                         setIconGroup(g.id);
                       }}
                     >
-                      Gruppen-Icon wählen
-                    </button>
+                      {t("Choose group icon")}</button>
                   )}
                 {c.groups.some((g) => groupIds(g.layout).includes(s.id)) && (
                   <button
@@ -905,34 +911,33 @@ function App() {
                       close();
                     }}
                   >
-                    Gruppe löschen
-                  </button>
+                    {t("Delete group")}</button>
                 )}
                 <div className="context-heading">
                   <Icon service={s} />
                   <div>
                     <strong>{s.name}</strong>
                     <small>
-                      {s.running ? "Läuft im Hintergrund weiter" : "Gestoppt"}
+                      {s.running ? t("Keeps running in the background") : t("Stopped")}
                     </small>
                   </div>
                 </div>
                 {(
                   [
-                    { label: "Starten", key: "start", disabled: s.running },
-                    { label: "Stoppen", key: "stop", disabled: !s.running },
+                    { label: "Start", key: "start", disabled: s.running },
+                    { label: "Stop", key: "stop", disabled: !s.running },
                     {
-                      label: "Element ausblenden",
+                      label: "Hide element",
                       key: "hideElement",
                       disabled: !s.running || s.kind === "widgets",
                     },
-                    { label: "Neu laden", key: "reload", disabled: !s.running },
+                    { label: "Reload", key: "reload", disabled: !s.running },
                     {
-                      label: s.muted ? "Ton einschalten" : "Stummschalten",
+                      label: s.muted ? t("Unmute") : t("Mute"),
                       key: "mute",
                     },
-                    { label: "Start-URL wiederherstellen", key: "reset" },
-                    { label: "Im Browser öffnen", key: "external" },
+                    { label: "Restore start URL", key: "reset" },
+                    { label: "Open in browser", key: "external" },
                   ] as const
                 ).map((a) => (
                   <button
@@ -943,7 +948,7 @@ function App() {
                       close();
                     }}
                   >
-                    {a.label}
+                    {t(a.label)}
                   </button>
                 ))}
                 <hr />
@@ -953,8 +958,7 @@ function App() {
                     setEdit(s);
                   }}
                 >
-                  Diensteinstellungen
-                </button>
+                  {t("Service settings")}</button>
                 <button
                   className="danger"
                   onClick={() => {
@@ -962,8 +966,7 @@ function App() {
                     close();
                   }}
                 >
-                  Dienst entfernen
-                </button>
+                  {t("Remove service")}</button>
               </div>
             )
           );
@@ -973,18 +976,18 @@ function App() {
           className="modal known-services-modal"
           role="dialog"
           aria-modal="true"
-          aria-label="Dienst hinzufügen"
+          aria-label={t("Add service")}
         >
           <div className="modal-heading">
-            <h2>Dienst hinzufügen</h2>
-            <button title="Schließen" onClick={close}>
+            <h2>{t("Add service")}</h2>
+            <button title={t("Close")} onClick={() => setPanel("settings")}>
               <X size={20} />
             </button>
           </div>
           <div className="known-services-list">
             <button onClick={() => setPanel("add")}>
               <Plus size={24} />
-              <span>Benutzerdefinierter Dienst</span>
+              <span>{t("Custom service")}</span>
             </button>
             {state.catalog?.map((s) => {
               const exists = c.services.some((item) => item.id === s.id);
@@ -999,7 +1002,7 @@ function App() {
                 >
                   <Icon service={s} />
                   <span>{s.name}</span>
-                  {exists && <small>Weitere Instanz hinzufügen</small>}
+                  {exists && <small>{t("Add another instance")}</small>}
                 </button>
               );
             })}
@@ -1011,13 +1014,11 @@ function App() {
             <button
               onClick={() => void send({ type: "catalog", action: "open" })}
             >
-              Katalog bearbeiten
-            </button>
+              {t("Edit catalog")}</button>
             <button
               onClick={() => void send({ type: "catalog", action: "reload" })}
             >
-              Neu laden
-            </button>
+              {t("Reload")}</button>
           </div>
         </div>
       )}
@@ -1026,11 +1027,11 @@ function App() {
           className="modal group-icon-modal"
           role="dialog"
           aria-modal="true"
-          aria-label="Gruppen-Icon wählen"
+          aria-label={t("Choose group icon")}
         >
           <div className="modal-heading">
-            <h2>Gruppen-Icon wählen</h2>
-            <button title="Schließen" onClick={close}>
+            <h2>{t("Choose group icon")}</h2>
+            <button title={t("Close")} onClick={close}>
               <X size={20} />
             </button>
           </div>
@@ -1044,24 +1045,25 @@ function App() {
                 .catch(() => {});
             }}
           />
-          <small>Lucide · ISC-Lizenz</small>
+          <small>{t("Lucide · ISC license")}</small>
         </div>
       )}
       {(panel === "add" || edit) && (
         <ServiceDialog
           initial={edit}
           services={c.services}
-          onClose={close}
+          onClose={() => { setEdit(null); setPanel(settingsOpen ? "settings" : null); }}
           onSave={async (s) => {
             await send({ type: "saveService", service: s });
-            close();
+            setEdit(null); setPanel(settingsOpen ? "settings" : null);
           }}
           onClear={(s) => action(s, "clearProfile")}
         />
       )}
-      {panel === "settings" && (
+      {settingsOpen && (
         <SettingsDialog
           state={state}
+          inactive={panel === "known" || panel === "add" || !!edit}
           send={send}
           onClose={close}
           onAdd={() => setPanel("known")}
@@ -1073,9 +1075,9 @@ function App() {
       )}
       {(error || state.persistenceError) && (
         <div className="toast" role="alert">
-          <span>{error || state.persistenceError}</span>
+          <span>{t(error || state.persistenceError || "")}</span>
           <button
-            title="Meldung schließen"
+            title={t("Dismiss notification")}
             onClick={() => {
               setError("");
               if (state.persistenceError)
@@ -1107,7 +1109,7 @@ function ServiceDialog({
       ? structuredClone(initial)
       : serviceSchema.parse({
           id: crypto.randomUUID(),
-          name: "Neuer Dienst",
+          name: "New service",
           url: "",
           profile: crypto.randomUUID(),
         }),
@@ -1117,17 +1119,17 @@ function ServiceDialog({
     set({ ...s, [key]: value });
   return (
     <div
-      className="modal"
+      className="modal service-editor-modal"
       role="dialog"
       aria-modal="true"
-      aria-label="Diensteinstellungen"
+      aria-label={t("Service settings")}
     >
       <div className="modal-heading">
         <div>
-          <span className="eyebrow">DEINE VERBINDUNGEN</span>
-          <h2>{initial ? "Dienst bearbeiten" : "Neuer Dienst"}</h2>
+          <span className="eyebrow">{t("YOUR CONNECTIONS")}</span>
+          <h2>{initial ? t("Edit service") : t("New service")}</h2>
         </div>
-        <button title="Schließen" onClick={onClose}>
+        <button title={t("Close")} onClick={onClose}>
           <X size={20} />
         </button>
       </div>
@@ -1155,16 +1157,11 @@ function ServiceDialog({
               checked={s.globalAccess}
               onChange={(e) => field("globalAccess", e.target.checked)}
             />
-            Globalen Zugriff erlauben
-          </label>
+            {t("Allow shared profile")}</label>
           <p className="note full">
-            Aktivierte Dienste teilen Cookies und Anmeldungen wie Tabs in einem
-            Browser. Andere Instanzen bleiben getrennt. Beim Wechsel wird dieser
-            Dienst neu gestartet; das bisherige Profil bleibt erhalten.
-          </p>
+            {t("Enabled services share cookies and sign-ins like browser tabs. Other instances stay isolated. Switching restarts this service and preserves its previous profile.")}</p>
           <label className="full">
-            Start-URL
-            <input
+            {t("Start URL")}<input
               required={s.kind !== "widgets"}
               type="url"
               placeholder="https://…"
@@ -1176,8 +1173,7 @@ function ServiceDialog({
         </div>
         {initial?.running && (
           <p className="note">
-            Für einen URL-Wechsel den Dienst zuerst stoppen.
-          </p>
+            {t("Stop the service before changing its URL.")}</p>
         )}
         <label className="check">
           <input
@@ -1185,13 +1181,10 @@ function ServiceDialog({
             checked={s.allowHttp}
             onChange={(e) => field("allowHttp", e.target.checked)}
           />{" "}
-          HTTP ausdrücklich erlauben (z. B. lokales Home Assistant)
-        </label>
+          {t("Allow HTTP explicitly (e.g. local Home Assistant)")}</label>
         {s.allowHttp && (
           <p className="warning">
-            HTTP überträgt Daten unverschlüsselt. Nur für ein vertrauenswürdiges
-            Netzwerk verwenden.
-          </p>
+            {t("HTTP transfers data without encryption. Use only on a trusted network.")}</p>
         )}
         <div className="form-grid">
           <label>
@@ -1225,15 +1218,14 @@ function ServiceDialog({
             </select>
           </label>
           <label>
-            Eigenes Icon (PNG, JPEG, WebP)
-            <input
+            {t("Custom icon (PNG, JPEG, WebP)")}<input
               type="file"
               accept="image/png,image/jpeg,image/webp"
               onChange={(e) => {
                 const f = e.target.files?.[0];
                 if (!f) return;
                 if (f.size > 140000) {
-                  setError("Icon maximal 140 KB.");
+                  setError(t("Maximum icon size: 140 KB."));
                   return;
                 }
                 const reader = new FileReader();
@@ -1250,44 +1242,37 @@ function ServiceDialog({
               checked={s.running}
               onChange={(e) => field("running", e.target.checked)}
             />{" "}
-            Gestartet
-          </label>
+            {t("Running")}</label>
           <label className="check">
             <input
               type="checkbox"
               checked={s.enabled}
               onChange={(e) => field("enabled", e.target.checked)}
             />{" "}
-            In Leiste anzeigen
-          </label>
+            {t("Show in dock")}</label>
           <label className="check">
             <input
               type="checkbox"
               checked={s.muted}
               onChange={(e) => field("muted", e.target.checked)}
             />{" "}
-            Stumm
-          </label>
+            {t("Muted")}</label>
         </div>
         <h3>
-          <Shield size={15} /> Berechtigungen
-        </h3>
+          <Shield size={15} /> {t("Permissions")}</h3>
         <p className="note">
-          Nur für den Ursprung der Start-URL. Bildschirmfreigabe fragt immer
-          nach einer Quelle. Global aktivierte Dienste teilen Anmeldedaten;
-          Website-Zugriffsgrenzen bleiben bestehen.
-        </p>
+          {t("Applies only to the start URL origin. Screen sharing always asks for a source. Shared-profile services share sign-ins; website origin boundaries remain enforced.")}</p>
         <div className="form-grid">
           {(
             Object.entries({
-              microphone: "Mikrofon",
-              camera: "Kamera",
-              notifications: "Benachrichtigungen",
-              screen: "Bildschirmfreigabe",
+              microphone: "Microphone",
+              camera: "Camera",
+              notifications: "Notifications",
+              screen: "Screen sharing",
             }) as [keyof Service["permissions"], string][]
           ).map(([key, label]) => (
             <label key={key}>
-              {label}
+              {t(label)}
               <select
                 value={s.permissions[key]}
                 onChange={(e) =>
@@ -1297,24 +1282,23 @@ function ServiceDialog({
                   })
                 }
               >
-                <option value="ask">Nachfragen</option>
-                <option value="allow">Erlauben</option>
-                <option value="deny">Verweigern</option>
+                <option value="ask">{t("Ask")}</option>
+                <option value="allow">{t("Allow")}</option>
+                <option value="deny">{t("Deny")}</option>
               </select>
             </label>
           ))}
         </div>
-        <h3>Ausgeblendete Website-Elemente</h3>
+        <h3>{t("Hidden website elements")}</h3>
         {s.hiddenElements.length === 0 && (
           <p className="note">
-            Rechtsklick auf das Dienst-Icon → Element ausblenden.
-          </p>
+            {t("Right-click the service icon → Hide element.")}</p>
         )}
         {s.hiddenElements.map((rule, index) => (
           <div className="hidden-rule" key={index}>
             <input
               type="checkbox"
-              aria-label="Regel aktiv"
+              aria-label={t("Rule enabled")}
               checked={rule.enabled}
               onChange={(e) =>
                 field(
@@ -1337,11 +1321,10 @@ function ServiceDialog({
                 )
               }
             >
-              Löschen
-            </button>
+              {t("Delete")}</button>
           </div>
         ))}
-        {error && <p className="warning">{error}</p>}
+        {error && <p className="warning">{t(error)}</p>}
         <div className="modal-footer">
           {initial && (
             <button
@@ -1349,34 +1332,33 @@ function ServiceDialog({
               className="danger text-button"
               onClick={() => onClear(initial)}
             >
-              Profil abmelden / löschen
-            </button>
+              {t("Sign out / clear profile")}</button>
           )}
           <button type="button" onClick={onClose}>
-            Abbrechen
-          </button>
+            {t("Cancel")}</button>
           <button className="primary" type="submit">
-            <Check size={15} /> Speichern
-          </button>
+            <Check size={15} /> {t("Save")}</button>
         </div>
       </form>
     </div>
   );
 }
 function SettingsDialog({
+  inactive,
   state,
   send,
   onClose,
   onEdit,
   onAdd,
 }: {
+  inactive: boolean;
   state: Snapshot;
   send: (c: Command) => Promise<void>;
   onClose: () => void;
   onEdit: (s: Service) => void;
   onAdd: () => void;
 }) {
-  const [tab, setTab] = useState("Allgemein"),
+  const [tab, setTab] = useState("General"),
     [settings, setSettings] = useState({ ...state.config.settings });
   const [sidebar, setSidebar] = useState({
     weatherLocation: state.config.sidebar.weatherLocation,
@@ -1389,53 +1371,52 @@ function SettingsDialog({
   const [sortId, setSortId] = useState<string | null>(null);
   const [dropAt, setDropAt] = useState<number | null>(null);
   const fields = {
-    autostart: "Mit Windows starten (installierte App)",
-    startMinimized: "Minimiert starten",
-    minimizeToTray: "Beim Minimieren im Tray ausblenden",
-    closeToTray: "Beim Schließen im Tray weiterlaufen",
-    restoreWindow: "Fensterposition wiederherstellen",
-    restoreSession: "Letzte Spaltenbelegung wiederherstellen",
-    saveWidths: "Spaltenbreiten beim Start wiederherstellen",
-    notifications: "Desktop-Benachrichtigungen zulassen",
-    showColumnTabs: "Spalten-Tableiste anzeigen",
-    groupActive: "Aktive Dienste gruppieren",
-    hideInactive: "Inaktive Apps ausblenden",
+    autostart: "Launch with Windows (installed app)",
+    startMinimized: "Start minimized",
+    minimizeToTray: "Hide in tray when minimized",
+    closeToTray: "Keep running in tray when closed",
+    restoreWindow: "Restore window position",
+    restoreSession: "Restore last workspace",
+    saveWidths: "Restore column widths on startup",
+    notifications: "Allow desktop notifications",
+    showColumnTabs: "Show column tab bars",
+    groupActive: "Group running services",
+    hideInactive: "Hide inactive apps",
   };
   return (
     <div
       className="modal settings-modal"
+      inert={inactive}
       role="dialog"
       aria-modal="true"
-      aria-label="Einstellungen"
+      aria-label={t("Settings")}
     >
       <div className="modal-heading">
         <div>
           <span className="eyebrow">INDIGODOCK</span>
-          <h2>Einstellungen</h2>
+          <h2>{t("Settings")}</h2>
         </div>
-        <button title="Schließen" onClick={onClose}>
+        <button title={t("Close")} onClick={onClose}>
           <X size={20} />
         </button>
       </div>
       <div className="settings-tabs">
-        {["Allgemein", "Aussehen", "Dienste", "Sidebar", "Erweitert"].map(
-          (t) => (
+        {["General", "Appearance", "Services", "Sidebar", "Advanced"].map(
+          (tabLabel) => (
             <button
-              key={t}
-              className={tab === t ? "selected" : ""}
-              onClick={() => setTab(t)}
+              key={t(tabLabel)}
+              className={tab === tabLabel ? "selected" : ""}
+              onClick={() => setTab(tabLabel)}
             >
-              {t}
+              {t(tabLabel)}
             </button>
           ),
         )}
       </div>
       <div className="settings-content">
-        {tab === "Allgemein" && (
+        {tab === "General" && (
           <>
-            <p className="note">
-              Deutsch · Dunkles Design · Native Windows-Mediensteuerung
-            </p>
+            <label className="setting-row">{t("Language")}<select aria-label={t("Language")} value={settings.language} onChange={e=>setSettings({...settings,language:e.target.value as "en"|"de"})}><option value="en">English</option><option value="de">Deutsch</option></select></label>
             {Object.entries(fields)
               .filter(
                 ([k]) =>
@@ -1449,7 +1430,7 @@ function SettingsDialog({
               )
               .map(([key, label]) => (
                 <label key={key} className="setting-row">
-                  {label}
+                  {t(label)}
                   <input
                     type="checkbox"
                     checked={settings[key as keyof typeof fields]}
@@ -1461,12 +1442,11 @@ function SettingsDialog({
               ))}
           </>
         )}
-        {tab === "Aussehen" && (
+        {tab === "Appearance" && (
           <>
             <label className="setting-row">
-              Gruppen-Modus
-              <select
-                aria-label="Gruppen-Modus"
+              {t("Group mode")}<select
+                aria-label={t("Group mode")}
                 value={settings.groupMode}
                 onChange={(e) =>
                   setSettings({
@@ -1475,24 +1455,25 @@ function SettingsDialog({
                   })
                 }
               >
-                <option value="icon-group">Icon + Gruppe</option>
-                <option value="group-only">Nur Gruppe</option>
-                <option value="icon-only">Nur Icon</option>
+                <option value="icon-group">{t("Icon + group")}</option>
+                <option value="group-only">{t("Group only")}</option>
+                <option value="icon-only">{t("Icon only")}</option>
               </select>
             </label>
-            <h3>Aussehen</h3>
+            <label className="setting-row">{t("Font size")}<select aria-label={t("Font size")} value={settings.fontSize} onChange={e=>setSettings({...settings,fontSize:Number(e.target.value)})}>{[14,16,18,20].map(n=><option key={n} value={n}>{n} px</option>)}</select></label>
+            <h3>{t("Appearance")}</h3>
             {(
               [
-                ["background", "Hintergrund der Sidebar"],
-                ["widgetBackground", "Hintergrund der Widgets"],
-                ["textColor", "Schriftfarbe"],
+                ["background", "Sidebar background"],
+                ["widgetBackground", "Widget background"],
+                ["textColor", "Text color"],
               ] as const
             ).map(([key, label]) => (
               <label className="setting-row" key={key}>
-                {label}
+                {t(label)}
                 <input
                   type="color"
-                  aria-label={label}
+                  aria-label={t(label)}
                   value={sidebar[key]}
                   onChange={(e) =>
                     setSidebar({ ...sidebar, [key]: e.target.value })
@@ -1502,15 +1483,15 @@ function SettingsDialog({
             ))}
             {(
               [
-                ["accentColor", "Akzentfarbe"],
-                ["dockColor", "Hintergrund des Docks"],
+                ["accentColor", "Accent color"],
+                ["dockColor", "Dock background"],
               ] as const
             ).map(([key, label]) => (
               <label className="setting-row" key={key}>
-                {label}
+                {t(label)}
                 <input
                   type="color"
-                  aria-label={label}
+                  aria-label={t(label)}
                   value={settings[key]}
                   onChange={(e) =>
                     setSettings({ ...settings, [key]: e.target.value })
@@ -1529,7 +1510,7 @@ function SettingsDialog({
               ] as const
             ).map((key) => (
               <label key={key} className="setting-row">
-                {fields[key]}
+                {t(fields[key])}
                 <input
                   type="checkbox"
                   checked={settings[key]}
@@ -1540,8 +1521,7 @@ function SettingsDialog({
               </label>
             ))}
             <label className="setting-row">
-              Dock-Position
-              <select
+              {t("Dock position")}<select
                 value={settings.dockPosition}
                 onChange={(e) =>
                   setSettings({
@@ -1552,20 +1532,19 @@ function SettingsDialog({
                 }
               >
                 {Object.entries({
-                  bottom: "Unten",
-                  left: "Links",
-                  right: "Rechts",
-                  top: "Oben",
+                  bottom: "Bottom",
+                  left: "Left",
+                  right: "Right",
+                  top: "Top",
                 }).map(([value, label]) => (
                   <option key={value} value={value}>
-                    {label}
+                    {t(label)}
                   </option>
                 ))}
               </select>
             </label>
             <label className="setting-row">
-              Standardanzahl Spalten
-              <select
+              {t("Default column count")}<select
                 value={settings.defaultColumns}
                 onChange={(e) =>
                   setSettings({
@@ -1580,19 +1559,15 @@ function SettingsDialog({
               </select>
             </label>
             <p className="note">
-              Standardanzahl gilt, wenn „Letzte Spaltenbelegung“ deaktiviert
-              ist. Bekannte Layouts bleiben ansonsten getrennt gespeichert.
-            </p>
+              {t("The default applies when restoring the last workspace is disabled. Other saved layouts are kept separately.")}</p>
             <button onClick={() => void send({ type: "resetLayout" })}>
-              Layoutzuordnungen zurücksetzen
-            </button>
+              {t("Reset layout assignments")}</button>
           </>
         )}
-        {tab === "Dienste" && (
+        {tab === "Services" && (
           <div className="service-list">
             <button className="primary add-service-settings" onClick={onAdd}>
-              <Plus size={16} /> Dienst hinzufügen
-            </button>
+              <Plus size={16} /> {t("Add service")}</button>
             {state.config.services.map((s, i) => (
               <div
                 key={s.id}
@@ -1637,18 +1612,18 @@ function SettingsDialog({
                 <span>
                   {s.name}
                   <small>
-                    {s.profile} · {s.running ? "Gestartet" : "Gestoppt"}
+                    {s.profile} · {s.running ? t("Running") : t("Stopped")}
                   </small>
                 </span>
                 <button
-                  title="Dienst löschen"
+                  title={t("Delete service")}
                   onClick={() =>
                     void send({ type: "service", id: s.id, action: "remove" })
                   }
                 >
                   <X size={16} />
                 </button>
-                <button onClick={() => onEdit(s)}>Bearbeiten</button>
+                <button onClick={() => onEdit(s)}>{t("Edit")}</button>
               </div>
             ))}
           </div>
@@ -1666,27 +1641,25 @@ function SettingsDialog({
                 }}
               />
             )}
-            {sidebar.weatherLocation && (
-              <p className="note">Wetter: {sidebar.weatherLocation.name}</p>
-            )}
             {(
               [
-                ["clock", "Uhr und Datum"],
+                ["clock", "Clock and date"],
                 ["spotify", "Spotify"],
-                ["performance", "Systemauslastung"],
-                ["mixer", "Windows-Lautstärkemixer"],
-                ["notes", "Notizen"],
-                ["calendar", "Kalender"],
-                ["weather", "Wetter"],
+                ["performance", "System usage"],
+                ["mixer", "Windows volume mixer"],
+                ["notes", "Notes"],
+                ["calendar", "Calendar"],
+                ["weather", "Weather"],
               ] as const
             ).map(([id, label]) => (
               <label className="setting-row" key={id}>
                 <span>
-                  {label}{" "}
+                  {t(label)}{" "}
+                  {id === "weather" && sidebar.weatherLocation && <small className="weather-setting-location">{sidebar.weatherLocation.name}</small>}
                   {id === "weather" && (
                     <button
                       type="button"
-                      title="Wetterstandort einstellen"
+                      title={t("Set weather location")}
                       onClick={(e) => {
                         e.preventDefault();
                         setWeatherEdit(!weatherEdit);
@@ -1698,7 +1671,7 @@ function SettingsDialog({
                 </span>
                 <input
                   type="checkbox"
-                  aria-label={label}
+                  aria-label={t(label)}
                   checked={sidebar.widgets.includes(id)}
                   onChange={(e) =>
                     setSidebar({
@@ -1713,31 +1686,28 @@ function SettingsDialog({
             ))}
           </div>
         )}
-        {tab === "Erweitert" && (
+        {tab === "Advanced" && (
           <>
             <p>IndigoDock {state.version}</p>
             <div className="credits">
               <button
                 onClick={() => void send({ type: "infoLink", page: "icons" })}
               >
-                Gruppen-Icons: Lucide · ISC-Lizenz
-              </button>
+                {t("Group icons: Lucide · ISC license")}</button>
               <button
                 onClick={() => void send({ type: "infoLink", page: "weather" })}
               >
-                Wetterdaten: Open-Meteo
-              </button>
+                {t("Weather data: Open-Meteo")}</button>
               <button
                 onClick={() =>
                   void send({ type: "infoLink", page: "weatherLicense" })
                 }
               >
-                Wetterlizenz: CC BY 4.0 · Temperaturen gerundet
-              </button>
+                {t("Weather license: CC BY 4.0 · temperatures rounded")}</button>
             </div>
             <div className="update-panel">
               <p role="status">
-                {state.update?.message || "Updates über GitHub Releases"}
+                {t(state.update?.message || "Updates from GitHub Releases")}
               </p>
               <button
                 disabled={
@@ -1746,16 +1716,14 @@ function SettingsDialog({
                 }
                 onClick={() => void send({ type: "update", action: "check" })}
               >
-                Auf Updates prüfen
-              </button>
+                {t("Check for updates")}</button>
               {state.update?.state === "available" && (
                 <button
                   onClick={() =>
                     void send({ type: "update", action: "download" })
                   }
                 >
-                  Update herunterladen
-                </button>
+                  {t("Download update")}</button>
               )}
               {state.update?.state === "downloaded" && (
                 <button
@@ -1763,54 +1731,44 @@ function SettingsDialog({
                     void send({ type: "update", action: "install" })
                   }
                 >
-                  Neu starten und aktualisieren
-                </button>
+                  {t("Restart and update")}</button>
               )}
             </div>
             <p className="note">
-              Chromium verwaltet die Anmeldedaten lokal. Google-Anmeldung kann
-              eingebettete Browser blockieren; Spotify-Wiedergabe ist ohne
-              unterstütztes Widevine nicht garantiert. „Im Browser öffnen“
-              verwendet eine separate Browsersitzung.
-            </p>
+              {t("Chromium stores sign-in data locally. Google may block embedded browser sign-in; Spotify playback requires supported Widevine. Opening in a browser uses a separate browser session.")}</p>
             <div className="advanced-actions">
               <button
                 onClick={() =>
                   void send({ type: "diagnostics", action: "data" })
                 }
               >
-                Datenverzeichnis öffnen
-              </button>
+                {t("Open data directory")}</button>
               <button
                 onClick={() =>
                   void send({ type: "diagnostics", action: "logs" })
                 }
               >
-                Diagnoselog anzeigen
-              </button>
+                {t("Show diagnostic log")}</button>
               <button
                 className="danger"
                 onClick={() => void send({ type: "window", action: "quit" })}
               >
-                IndigoDock vollständig beenden
-              </button>
+                {t("Quit IndigoDock")}</button>
             </div>
           </>
         )}
       </div>
-      <div className="modal-footer">
-        <button onClick={onClose}>Schließen</button>
+      <div className="modal-footer settings-footer">
+        <button className="outline" onClick={onClose}>{t("Close")}</button>
         <button
           className="primary"
           onClick={() =>
             void send({ type: "settings", settings })
               .then(() => send({ type: "sidebar", patch: sidebar }))
-              .then(onClose)
               .catch(() => {})
           }
         >
-          Einstellungen speichern
-        </button>
+          {t("Apply")}</button>
       </div>
     </div>
   );

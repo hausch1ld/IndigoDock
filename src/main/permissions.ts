@@ -1,3 +1,4 @@
+import { appPrompt } from "./prompt";
 import { sessionProfile } from "../shared/profiles";
 import {
   session,
@@ -45,7 +46,7 @@ export class PermissionManager {
         ses.flushStorageData();
         void ses.cookies
           .flushStore()
-          .catch(() => this.log("Cookie-Checkpoint fehlgeschlagen."));
+          .catch(() => this.log("Cookie checkpoint failed."));
       }, 2000);
       flushTimer.unref();
     });
@@ -89,6 +90,7 @@ export class PermissionManager {
 
       const k = keys(permission, type ? [type] : undefined);
 
+      if (permission === "display-capture") return s.permissions.screen !== "deny";
       return !!k.length && k.every((k) => s.permissions[k] === "allow");
     });
 
@@ -110,6 +112,7 @@ export class PermissionManager {
       )
         return callback(false);
 
+      if (permission === "display-capture") return callback(true); // Explicit source selection follows.
       if (k.every((k) => s.permissions[k] === "allow")) return callback(true);
 
       const requestKey = s.id + permission;
@@ -118,18 +121,16 @@ export class PermissionManager {
 
       this.busy.add(requestKey);
 
-      dialog
-
-        .showMessageBox(this.window, {
+      appPrompt(this.window, this.config(), {
           type: "question",
 
-          title: "IndigoDock · Berechtigung",
+          title: "IndigoDock · Permission",
 
-          message: `${s.name}: ${k.join(", ")} erlauben?`,
+          message: `Allow ${k.join(", ")} for ${s.name}?`,
 
-          detail: `Nur für ${origin(s.url)}. Die Entscheidung kann in den Diensteinstellungen geändert werden.`,
+          detail: `Only for ${origin(s.url)}. You can change this decision in service settings.`,
 
-          buttons: ["Verweigern", "Erlauben"],
+          buttons: ["Deny", "Allow"],
 
           defaultId: 0,
 
@@ -160,32 +161,34 @@ export class PermissionManager {
 
         const s = resolve(wc ?? null, request.securityOrigin);
 
-        if (!s || s.permissions.screen === "deny" || !request.userGesture)
+        if (!s || s.permissions.screen === "deny")
           return callback({});
 
         const sources = await desktopCapturer.getSources({
           types: ["screen", "window"],
 
-          thumbnailSize: { width: 0, height: 0 },
+          thumbnailSize: { width: 320, height: 180 },
         });
 
-        const result = await dialog.showMessageBox(this.window, {
+        const result = await appPrompt(this.window, this.config(), {
           type: "question",
 
-          title: "Bildschirm teilen",
+          title: "Share screen",
 
-          message: `${s.name} · Quelle auswählen`,
+          message: `${s.name} · Select a source`,
 
           detail:
-            "Nur die ausgewählte Quelle wird geteilt. Bei angefordertem Audio wird der gesamte Windows-Systemton mitgesendet.",
+            "Only the selected source will be shared. Enable system audio below to also share all Windows audio.",
 
-          buttons: ["Abbrechen", ...sources.map((x) => x.name)],
+          buttons: ["Cancel", ...sources.map((x) => x.name)],
 
           defaultId: 0,
 
           cancelId: 0,
 
           noLink: true,
+          sources: sources.map(x => ({name: x.name, image: x.thumbnail.toDataURL()})),
+          audio: request.audioRequested,
         });
 
         if (
@@ -201,17 +204,17 @@ export class PermissionManager {
         if (!selected) return callback({});
 
         this.log(
-          `${s.id}: Bildschirmquelle ausgewählt (${selected.id.startsWith("screen:") ? "Bildschirm" : "Fenster"}), Audio ${request.audioRequested}`,
+          `Screen source selected (${selected.id.startsWith("screen:") ? "screen" : "window"}), audio ${request.audioRequested && result.audio}`,
         );
 
         callback({
           video: selected,
 
-          ...(request.audioRequested ? { audio: "loopback" } : {}),
+          ...(request.audioRequested && result.audio ? { audio: "loopback" } : {}),
         });
       } catch (error) {
         this.log(
-          `Bildschirmfreigabe fehlgeschlagen: ${error instanceof Error ? error.name : "unbekannt"}`,
+          `Screen sharing failed: ${error instanceof Error ? error.name : "unknown"}`,
         );
 
         callback({});

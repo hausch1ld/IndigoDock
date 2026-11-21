@@ -31,7 +31,7 @@ export function parseForecast(raw: unknown): WeatherData {
       d.precipitation_probability_max,
     ].some((a) => a.length !== d.time.length)
   )
-    throw Error("Unvollständige Wetterdaten");
+    throw Error("Incomplete weather data");
   return {
     temperature: r.current.temperature_2m,
     code: r.current.weather_code,
@@ -53,7 +53,7 @@ async function json(url: URL) {
     signal: AbortSignal.timeout(10000),
     redirect: "error",
   });
-  if (!r.ok) throw Error("Wetterdienst ist derzeit nicht erreichbar.");
+  if (!r.ok) throw Error("The weather service is currently unavailable.");
   return r.json();
 }
 export class Weather {
@@ -104,7 +104,7 @@ export class Weather {
     if (old?.pending) return old.pending;
     if (old && Date.now() - old.at < 900000) {
       if (old.data) return old.data;
-      throw Error("Wetterdaten momentan nicht verfügbar.");
+      throw Error("Weather data is currently unavailable.");
     }
     const url = new URL("https://api.open-meteo.com/v1/forecast");
     url.search = new URLSearchParams({
@@ -137,7 +137,7 @@ export class Weather {
     } catch {
       entry.at = Date.now() - 840000;
       if (entry.data) return entry.data;
-      throw Error("Wetterdaten momentan nicht verfügbar.");
+      throw Error("Weather data is currently unavailable.");
     }
   }
 }

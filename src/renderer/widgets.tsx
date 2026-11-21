@@ -1,3 +1,4 @@
+import { t, locale, setLanguage } from "../shared/i18n";
 import { WeatherWidget } from "./weather";
 import { CalendarWidget } from "./calendar";
 import React, { useState, useEffect, useRef } from "react";
@@ -32,7 +33,7 @@ function Slider({
   useEffect(() => () => clearTimeout(timer.current), []);
   return (
     <input
-      aria-label={label}
+      aria-label={t(label)}
       type="range"
       min="0"
       max="100"
@@ -78,7 +79,7 @@ export function WidgetBoard({
         const value = await api.widgets();
         if (active) setData(value);
       } catch {
-        if (active) setError("Widget-Daten konnten nicht geladen werden.");
+        if (active) setError(t("Could not load widget data."));
       } finally {
         if (active) timer = setTimeout(poll, 2500);
       }
@@ -98,17 +99,17 @@ export function WidgetBoard({
         if (c.type === "spotifyControl") setData(await api.widgets());
       })
       .catch(() =>
-        setError("Aktion fehlgeschlagen. Dienst und Audioausgabe prüfen."),
+        setError(t("Action failed. Check the service and audio output.")),
       );
   };
   const names = {
-    clock: "Uhr",
+    clock: "Clock",
     spotify: "Spotify",
-    performance: "Systemauslastung",
-    mixer: "Windows-Lautstärkemixer",
-    notes: "Notizen",
-    calendar: "Kalender",
-    weather: "Wetter",
+    performance: "System usage",
+    mixer: "Windows volume mixer",
+    notes: "Notes",
+    calendar: "Calendar",
+    weather: "Weather",
   };
   const sessions = [
     ...new Map((data?.mixer ?? []).map((s) => [s.pid, s])).values(),
@@ -125,7 +126,7 @@ export function WidgetBoard({
         } as React.CSSProperties
       }
     >
-      {error && <p role="status">{error}</p>}
+      {error && <p role="status">{t(error)}</p>}
       {sidebar.widgets.map((kind, index) => (
         <section
           className={
@@ -216,8 +217,8 @@ export function WidgetBoard({
             <textarea
               ref={notesField}
               className="notes-widget"
-              aria-label="Notizen"
-              placeholder="Notizen …"
+              aria-label={t("Notes")}
+              placeholder={t("Notes …")}
               rows={6}
               maxLength={20000}
               value={notes}
@@ -229,9 +230,9 @@ export function WidgetBoard({
           )}
           {kind === "clock" && (
             <div className="clock-widget">
-              <strong>{now.toLocaleTimeString("de-DE")}</strong>
+              <strong>{now.toLocaleTimeString(locale())}</strong>
               <span>
-                {now.toLocaleDateString("de-DE", {
+                {now.toLocaleDateString(locale(), {
                   weekday: "long",
                   day: "numeric",
                   month: "long",
@@ -248,7 +249,7 @@ export function WidgetBoard({
                 <progress max="100" value={data?.cpu ?? 0} />
               </div>
               <div className="metric">
-                <span>Arbeitsspeicher</span>
+                <span>{t("Memory")}</span>
                 <strong>{data ? data.memory + " %" : "…"}</strong>
                 <progress max="100" value={data?.memory ?? 0} />
               </div>
@@ -256,7 +257,7 @@ export function WidgetBoard({
                 <span title={data?.gpuName}>GPU</span>
                 <strong>
                   {data?.gpu === undefined
-                    ? "Nicht verfügbar"
+                    ? t("Unavailable")
                     : data.gpu + " %"}
                 </strong>
                 <progress max="100" value={data?.gpu ?? 0} />
@@ -271,7 +272,7 @@ export function WidgetBoard({
                     <img
                       draggable={false}
                       src={data.spotify.cover}
-                      alt="Albumcover"
+                      alt={t("Album cover")}
                     />
                   )}
                   <div>
@@ -280,7 +281,7 @@ export function WidgetBoard({
                   </div>
                 </div>
               ) : (
-                <p>Starte einen Titel im Spotify-Dienst.</p>
+                <p>{t("Start a track in the Spotify service.")}</p>
               )}
               <div className="player-controls">
                 <button
@@ -295,7 +296,7 @@ export function WidgetBoard({
                   <Shuffle size={15} />
                 </button>
                 <button
-                  title="Vorheriger Titel"
+                  title={t("Previous track")}
                   disabled={!data?.spotify}
                   onClick={() =>
                     act({ type: "spotifyControl", action: "previous" })
@@ -306,7 +307,7 @@ export function WidgetBoard({
                 <button
                   className="player-play"
                   title={
-                    data?.spotify?.paused === false ? "Pause" : "Wiedergabe"
+                    data?.spotify?.paused === false ? "Pause" : t("Play")
                   }
                   disabled={!data?.spotify}
                   onClick={() =>
@@ -320,7 +321,7 @@ export function WidgetBoard({
                   )}
                 </button>
                 <button
-                  title="Nächster Titel"
+                  title={t("Next track")}
                   disabled={!data?.spotify}
                   onClick={() =>
                     act({ type: "spotifyControl", action: "next" })
@@ -330,7 +331,7 @@ export function WidgetBoard({
                 </button>
                 <button
                   className="player-secondary"
-                  title="Wiederholen"
+                  title={t("Repeat")}
                   aria-pressed={!!data?.spotify?.repeat}
                   disabled={!data?.spotify}
                   onClick={() =>
@@ -349,8 +350,8 @@ export function WidgetBoard({
                   <button
                     title={
                       data.spotify.volume > 0
-                        ? "Stummschalten"
-                        : "Stummschaltung aufheben"
+                        ? t("Mute")
+                        : t("Unmute")
                     }
                     aria-pressed={data.spotify.volume === 0}
                     onClick={() =>
@@ -364,7 +365,7 @@ export function WidgetBoard({
                     )}
                   </button>
                   <Slider
-                    label="Spotify-Lautstärke"
+                    label={t("Spotify volume")}
                     value={data.spotify.volume}
                     onChange={(value) =>
                       act({ type: "spotifyControl", action: "volume", value })
@@ -377,17 +378,17 @@ export function WidgetBoard({
           {kind === "mixer" && (
             <>
               {data?.mixerError ? (
-                <p>{data.mixerError}</p>
+                <p>{t(data.mixerError)}</p>
               ) : sessions.length ? (
                 sessions.map((s) => (
                   <label className="mixer-row" key={s.pid}>
                     <span>
                       {s.name}
-                      {s.muted ? " · stumm" : ""}
+                      {s.muted ? t(" · muted") : ""}
                     </span>
                     <small>{Math.round(s.volume * 100)} %</small>
                     <Slider
-                      label={s.name + " Lautstärke"}
+                      label={s.name + " " + t("volume")}
                       value={s.volume}
                       onChange={(value) =>
                         act({ type: "mixerVolume", pid: s.pid, value })
@@ -396,7 +397,7 @@ export function WidgetBoard({
                   </label>
                 ))
               ) : (
-                <p>Keine aktiven Audiositzungen.</p>
+                <p>{t("No active audio sessions.")}</p>
               )}
             </>
           )}

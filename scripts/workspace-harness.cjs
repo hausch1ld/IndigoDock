@@ -1,8 +1,8 @@
 const {app,webContents,session,BaseWindow}=require('electron');
 const fs=require('node:fs'),path=require('node:path'),http=require('node:http'),assert=require('node:assert/strict');
 const project=fs.readFileSync(path.join(__dirname,'project.txt'),'utf8');
-const stageFile=path.join(project,'test-results','workspace-170-stage.json');const stage=fs.existsSync(stageFile)?JSON.parse(fs.readFileSync(stageFile,'utf8')):null;
-const results=stage?.results??path.join(project,'test-results','workspace-170-'+Date.now());fs.mkdirSync(results,{recursive:true});
+const stageFile=path.join(project,'test-results','workspace-180-stage.json');const stage=fs.existsSync(stageFile)?JSON.parse(fs.readFileSync(stageFile,'utf8')):null;
+const results=stage?.results??path.join(project,'test-results','workspace-180-'+Date.now());fs.mkdirSync(results,{recursive:true});
 process.env.MULTIDOCK_TEST_DATA=path.join(results,'profile');
 const checks=[],wait=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(f){for(let n=0;n<240;n++){const value=await f();if(value)return value;await wait(50)}throw Error('Timeout')}
@@ -22,6 +22,7 @@ app.whenReady().then(async()=>{
  const js=s=>{fs.appendFileSync(path.join(results,'trace.txt'),s+'\n');return ui.executeJavaScript(s)}; ui.on('console-message',(_e,...args)=>fs.appendFileSync(path.join(results,'console.txt'),JSON.stringify(args)+'\n'));await until(()=>js('!!window.multidock && !!document.querySelector(".dock")'));
  const cmd=async c=>{await js(`window.multidock.command(${JSON.stringify(c)})`);await wait(80)};
  const state=async()=>{await wait(70);return js('window.multidock.snapshot()')};
+ await cmd({type:'settings',settings:{...(await state()).config.settings,language:'de'}});
  const ready=id=>until(async()=>(await state()).status[id]?.state==='ready');
  if(stage?.phase===2){
    await ready('f0');await ready('f1');
@@ -81,6 +82,41 @@ app.whenReady().then(async()=>{
  await cmd({type:'settings',settings:{...(await state()).config.settings,accentColor:'#ef6688',dockColor:'#202040'}});await until(()=>js(`getComputedStyle(document.querySelector('.dock')).backgroundColor==='rgb(32, 32, 64)'`));assert.equal(await js(`getComputedStyle(document.querySelector('.weather-icon')).color`),'rgb(239, 102, 136)');checks.push('appearance colors propagate to dock and weather');
  await js(`document.querySelector('[title="Einstellungen"]').click()`);await until(()=>js(`!!document.querySelector('.settings-modal')`));assert.equal(await js(`[...document.querySelectorAll('.settings-tabs button')].some(b=>b.textContent==='Aussehen')`),true);
  await js(`[...document.querySelectorAll('.settings-tabs button')].find(b=>b.textContent==='Aussehen').click()`);await until(()=>js(`document.querySelectorAll('.settings-content input[type=color]').length===5`));checks.push('appearance tab contains all five colors');
+// Settings: dropdown width, no preselected new layout, non-destructive child dialogs and apply.
+assert.ok(await js(`document.querySelector('[aria-label="Gruppen-Modus"]').getBoundingClientRect().width>=180`));
+await js(`[...document.querySelectorAll('.settings-tabs button')].find(b=>b.textContent==='Dienste').click()`);
+await js(`document.querySelector('.add-service-settings').click()`);await until(()=>js(`!!document.querySelector('.known-services-modal')`));
+assert.equal(await js(`!!document.querySelector('.settings-modal')`),true);
+await js(`document.querySelector('.known-services-modal .modal-heading button').click()`);assert.equal(await js(`!!document.querySelector('.settings-modal .service-list')`),true);
+await js(`[...document.querySelectorAll('.settings-tabs button')].find(b=>b.textContent==='Allgemein').click()`);
+await js(`(()=>{const e=document.querySelector('[aria-label="Sprache"]');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(e,'en');e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+await js(`document.querySelector('.settings-footer .primary').click()`);await until(()=>js(`document.querySelector('.settings-modal h2').textContent==='Settings'`));
+assert.equal((await state()).config.settings.language,'en');checks.push('settings language applies without closing; child catalog returns to preserved services tab; group select is readable');
+await js(`[...document.querySelectorAll('.settings-tabs button')].find(b=>b.textContent==='Appearance').click()`);
+await js(`(()=>{const e=document.querySelector('[aria-label="Font size"]');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(e,'20');e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+await js(`document.querySelector('.settings-footer .primary').click()`);await until(()=>js(`getComputedStyle(document.querySelector('.settings-footer .primary')).fontSize==='20px'`));checks.push('UI font size applies to settings controls');
+await js(`document.querySelector('.settings-modal .modal-heading button').click()`);
+await js(`document.querySelector('.layout-trigger').click()`);await until(()=>js(`!!document.querySelector('.layout-options')`));assert.equal(await js(`document.querySelectorAll('.layout-options .chosen').length`),0);await js(`document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))`);checks.push('new group popup never preselects current layout');
+// Only a synthetic local fixture window is offered to screen capture. No desktop pixels are saved or transmitted.
+const {BrowserWindow,desktopCapturer}=require('electron');const captureFixture=new BrowserWindow({width:480,height:320,title:'IndigoDock capture fixture',webPreferences:{sandbox:true}});
+await captureFixture.loadURL('data:text/html,<title>IndigoDock capture fixture</title><body style="background:teal;color:white">Local capture fixture</body>');
+const realSources=desktopCapturer.getSources.bind(desktopCapturer);desktopCapturer.getSources=async options=>(await realSources(options)).filter(x=>x.name==='IndigoDock capture fixture');
+const captureWC=wcFor('isolated-0');
+await captureWC.executeJavaScript(`window.captureTest={}; navigator.mediaDevices.getDisplayMedia({video:true,audio:false}).then(async stream=>{window.testStream=stream;const video=document.createElement('video');video.srcObject=stream;video.muted=true;document.body.append(video);await video.play();window.captureTest={state:stream.getVideoTracks()[0].readyState,width:video.videoWidth,height:video.videoHeight};}).catch(e=>window.captureTest={error:e.name+': '+e.message}); true`,true);
+const picker=await until(()=>BrowserWindow.getAllWindows().find(w=>w!==captureFixture&&w.webContents.getURL().startsWith('data:text/html;charset')));
+await until(()=>picker.webContents.executeJavaScript(`!!document.querySelector('main button')`));
+assert.equal(await picker.webContents.executeJavaScript(`document.querySelector('main').children.length`),1);
+await picker.webContents.executeJavaScript(`document.querySelector('main button').click();document.querySelector('footer .primary').click()`);
+const captureResult=await until(async()=>{const r=await captureWC.executeJavaScript('window.captureTest');return r.state||r.error?r:null});assert.equal(captureResult.error,undefined);assert.equal(captureResult.state,'live');assert.ok(captureResult.width>0&&captureResult.height>0);await captureWC.executeJavaScript('window.testStream.getTracks().forEach(t=>t.stop())');
+checks.push('actual getDisplayMedia produces a live video track with decoded frames from the selected local fixture window');
+// Cancel returns AbortError rather than leaving a pending browser promise.
+await captureWC.executeJavaScript(`window.captureTest={};navigator.mediaDevices.getDisplayMedia({video:true}).then(s=>{s.getTracks().forEach(t=>t.stop());window.captureTest={unexpected:true}}).catch(e=>window.captureTest={error:e.name});true`,true);
+const cancelPicker=await until(()=>BrowserWindow.getAllWindows().find(w=>w!==captureFixture&&w.webContents.getURL().startsWith('data:text/html;charset')));await until(()=>cancelPicker.webContents.executeJavaScript(`!!document.querySelector('footer button')`));await cancelPicker.webContents.executeJavaScript(`document.querySelector('footer button').click()`);assert.ok((await until(async()=>{const r=await captureWC.executeJavaScript('window.captureTest');return r.error?r:null})).error);checks.push('screen picker cancellation rejects request cleanly');
+// External link dialog uses the app theme and does not navigate on cancel.
+await captureWC.executeJavaScript(`window.open('https://example.com/');true`);const linkPrompt=await until(()=>BrowserWindow.getAllWindows().find(w=>w!==captureFixture&&w.webContents.getURL().startsWith('data:text/html;charset')));await until(()=>linkPrompt.webContents.executeJavaScript(`!!document.querySelector('footer button')`));assert.equal(await linkPrompt.webContents.executeJavaScript('getComputedStyle(document.body).backgroundColor'),'rgb(32, 32, 64)');await linkPrompt.webContents.executeJavaScript(`document.querySelector('footer button').click()`);checks.push('external link confirmation follows dock theme and can be cancelled');
+captureFixture.close();desktopCapturer.getSources=realSources;
+await js(`document.querySelector('[title="Settings"]').click()`);await until(()=>js(`!!document.querySelector('.settings-modal')`));await js(`[...document.querySelectorAll('.settings-tabs button')].find(b=>b.textContent==='Appearance').click()`);
+
  try{fs.writeFileSync(path.join(results,'appearance.png'),(await ui.capturePage()).toPNG())}catch{}
  await js(`document.querySelector('.modal-heading button').click()`);await cmd({type:'overlay',visible:true});await wait(100);try{fs.writeFileSync(path.join(results,'weather.png'),(await ui.capturePage()).toPNG())}catch{}await cmd({type:'overlay',visible:false});
  await cmd({type:'groupIcon',id:empty.id,icon:'heart'});

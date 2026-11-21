@@ -25,3 +25,5 @@ await mkdir("dist/assets", { recursive: true });
 await copyFile("assets/icon.png", "dist/assets/icon.png");
 
 await copyFile("assets/AudioMixer.exe", "dist/assets/AudioMixer.exe");
+
+await build({entryPoints:["src/main/prompt-preload.ts"],outfile:"dist/prompt-preload.cjs",bundle:true,platform:"node",format:"cjs",external:["electron"],target:"node22"});

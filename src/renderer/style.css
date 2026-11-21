@@ -25,7 +25,7 @@
   color: #aebbc6;
 }
 .inactive-trigger small {
-  font-size: 9px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.6429);
   position: absolute;
   right: 1px;
   bottom: 0;
@@ -40,7 +40,7 @@
   overflow: auto;
 }
 .inactive-menu h3 {
-  font-size: 12px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.8571);
   margin: 5px 8px 12px;
   color: #95a6b5;
 }
@@ -78,7 +78,7 @@
   margin-bottom: 15px;
 }
 .update-panel p {
-  font-size: 12px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.8571);
   line-height: 1.6;
   margin-top: 0;
 }
@@ -142,14 +142,14 @@ select:focus-visible {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 14px;
+  font-size: calc(var(--ui-font-size, 16px) * 1.0000);
   font-weight: 650;
   padding-left: 17px;
   letter-spacing: -0.3px;
 }
 .brand small {
   color: #56616a;
-  font-size: 9px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.6429);
   font-weight: 500;
   letter-spacing: 1.7px;
   margin-left: 16px;
@@ -295,11 +295,11 @@ time {
   font-variant-numeric: tabular-nums;
 }
 time strong {
-  font-size: 14px;
+  font-size: calc(var(--ui-font-size, 16px) * 1.0000);
   font-weight: 500;
 }
 time span {
-  font-size: 11px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.7857);
   color: #98a4ad;
 }
 .column {
@@ -317,7 +317,7 @@ time span {
   gap: 4px;
 }
 .column-number {
-  font-size: 10px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.7143);
   color: #5c6872;
   padding: 0 7px;
   font-variant-numeric: tabular-nums;
@@ -333,7 +333,7 @@ time span {
 .tab {
   white-space: nowrap;
   color: #76828b;
-  font-size: 11px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.7857);
   padding: 5px 8px;
   flex-shrink: 0;
   max-width: 180px;
@@ -384,7 +384,7 @@ time span {
 }
 .eyebrow {
   color: var(--accent);
-  font-size: 9px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.6429);
   letter-spacing: 2px;
   font-weight: 600;
 }
@@ -396,7 +396,7 @@ time span {
 }
 .empty p {
   color: #8b98a2;
-  font-size: 12px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.8571);
   line-height: 1.8;
   max-width: 360px;
 }
@@ -405,7 +405,7 @@ time span {
   border: 1px solid #303a42;
   border-radius: 30px;
   padding: 10px 15px;
-  font-size: 10px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.7143);
   color: #92a1ac;
   display: flex;
   align-items: center;
@@ -422,11 +422,11 @@ time span {
   height: 44px;
 }
 .empty h2 {
-  font-size: 22px;
+  font-size: calc(var(--ui-font-size, 16px) * 1.5714);
   font-weight: 550;
 }
 .letter {
-  font-size: 13px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.9286);
   font-weight: 700;
   color: #87d7c9;
 }
@@ -507,7 +507,7 @@ time span {
   color: #cceae5;
 }
 .target-card small {
-  font-size: 11px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.7857);
   color: #94beb7;
 }
 .scrim {
@@ -532,7 +532,7 @@ time span {
   width: 370px;
 }
 .layout-menu h3 {
-  font-size: 21px;
+  font-size: calc(var(--ui-font-size, 16px) * 1.5000);
   font-weight: 500;
   margin: 8px 0 20px;
 }
@@ -546,7 +546,7 @@ time span {
   flex-direction: column;
   gap: 10px;
   padding: 9px 5px;
-  font-size: 10px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.7143);
   color: #a5b0b9;
 }
 .layout-preview {
@@ -570,7 +570,7 @@ time span {
   background: #30675d;
 }
 .layout-menu p {
-  font-size: 11px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.7857);
   color: #7c8d99;
   margin: 18px 0 0;
 }
@@ -583,7 +583,7 @@ time span {
   display: flex;
   width: 100%;
   justify-content: flex-start;
-  font-size: 12px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.8571);
 }
 .context-heading {
   display: flex;
@@ -597,7 +597,7 @@ time span {
 .context-heading small {
   display: block;
   color: #7e8d99;
-  font-size: 10px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.7143);
   margin-top: 4px;
 }
 .context-menu hr {
@@ -630,7 +630,7 @@ time span {
   margin-bottom: 22px;
 }
 .modal h2 {
-  font-size: 23px;
+  font-size: calc(var(--ui-font-size, 16px) * 1.6429);
   font-weight: 550;
   letter-spacing: -0.5px;
   margin: 7px 0 0;
@@ -638,7 +638,7 @@ time span {
 .modal h3 {
   display: flex;
   gap: 8px;
-  font-size: 13px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.9286);
   font-weight: 500;
   margin: 20px 0 8px;
 }
@@ -648,7 +648,7 @@ time span {
   gap: 14px;
 }
 .form-grid label {
-  font-size: 11px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.7857);
   color: #9facb6;
   display: flex;
   flex-direction: column;
@@ -668,7 +668,7 @@ select {
   width: 100%;
 }
 input[type="file"] {
-  font-size: 10px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.7143);
   padding: 7px 4px;
 }
 input[type="checkbox"] {
@@ -680,7 +680,7 @@ input[type="checkbox"] {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.7857);
   margin: 16px 0;
 }
 .check-row {
@@ -688,12 +688,12 @@ input[type="checkbox"] {
   justify-content: space-between;
 }
 .note {
-  font-size: 11px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.7857);
   line-height: 1.7;
   color: #8799a7;
 }
 .warning {
-  font-size: 11px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.7857);
   line-height: 1.6;
   color: #f3bb80;
   background: #57432944;
@@ -711,7 +711,7 @@ input[type="checkbox"] {
 }
 .modal-footer .danger {
   margin-right: auto;
-  font-size: 10px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.7143);
 }
 .primary {
   background: var(--accent);
@@ -723,7 +723,7 @@ input[type="checkbox"] {
   background: #a0eddb;
 }
 .text-button {
-  font-size: 11px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.7857);
   margin-top: 10px;
   color: #98a9b7;
 }
@@ -747,7 +747,7 @@ input[type="checkbox"] {
   align-items: center;
   min-height: 47px;
   border-bottom: 1px solid #ffffff07;
-  font-size: 12px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.8571);
 }
 .setting-row select {
   width: 80px;
@@ -773,11 +773,11 @@ input[type="checkbox"] {
 .service-list small {
   display: block;
   color: #7f909e;
-  font-size: 10px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.7143);
   margin-top: 4px;
 }
 .service-list button {
-  font-size: 11px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.7857);
 }
 .advanced-actions {
   display: flex;
@@ -786,7 +786,7 @@ input[type="checkbox"] {
 }
 .advanced-actions button {
   background: #28343d;
-  font-size: 11px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.7857);
 }
 .toast {
   position: absolute;
@@ -937,7 +937,7 @@ input[type="checkbox"] {
   align-items: center;
 }
 .app:is(.dock-left, .dock-right) time span {
-  font-size: 8px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.5714);
 }
 .app:is(.dock-left, .dock-right) > .popover {
   top: 112px;
@@ -1013,13 +1013,13 @@ input[type="checkbox"] {
   margin-bottom: 12px;
 }
 .widget-board h2 {
-  font-size: 20px;
+  font-size: calc(var(--ui-font-size, 16px) * 1.4286);
   margin: 0;
 }
 .widget-board header span,
 .widget-card small {
   color: #9daebc;
-  font-size: 11px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.7857);
 }
 .widget-card {
   position: relative;
@@ -1034,7 +1034,7 @@ input[type="checkbox"] {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.9286);
   margin: 0 0 15px;
 }
 .widget-card h3 > span {
@@ -1350,7 +1350,7 @@ input[type="checkbox"] {
 .titlebar-clock time {
   display: block;
   text-align: center;
-  font-size: 13px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.9286);
 }
 .titlebar-clock time span {
   display: none;
@@ -1401,7 +1401,7 @@ input[type="checkbox"] {
   margin-bottom: 12px;
 }
 .calendar-heading strong {
-  font-size: 14px;
+  font-size: calc(var(--ui-font-size, 16px) * 1.0000);
   text-align: center;
 }
 .calendar-heading button {
@@ -1424,7 +1424,7 @@ input[type="checkbox"] {
   font-variant-numeric: tabular-nums;
 }
 .calendar-weekdays {
-  font-size: 11px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.7857);
   opacity: 0.65;
 }
 .calendar-today {
@@ -1504,7 +1504,7 @@ input[type="checkbox"] {
 }
 .settings-modal,
 .modal {
-  font-size: 14px;
+  font-size: calc(var(--ui-font-size, 16px) * 1.0000);
 }
 .settings-modal button,
 .settings-modal input,
@@ -1512,15 +1512,15 @@ input[type="checkbox"] {
 .modal label,
 .modal input,
 .modal select {
-  font-size: 14px;
+  font-size: calc(var(--ui-font-size, 16px) * 1.0000);
 }
 .settings-modal .note,
 .settings-modal small {
-  font-size: 12px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.8571);
   line-height: 1.5;
 }
 .settings-tabs button {
-  font-size: 14px;
+  font-size: calc(var(--ui-font-size, 16px) * 1.0000);
 }
 .settings-content {
   color: var(--text);
@@ -1578,13 +1578,13 @@ input[type="checkbox"] {
   fill: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 .weather-temperature {
-  font-size: 34px;
+  font-size: calc(var(--ui-font-size, 16px) * 2.4286);
   line-height: 1;
   font-weight: 500;
   white-space: nowrap;
 }
 .weather-temperature small {
-  font-size: 14px;
+  font-size: calc(var(--ui-font-size, 16px) * 1.0000);
 }
 .weather-details {
   display: flex;
@@ -1593,7 +1593,7 @@ input[type="checkbox"] {
   flex-direction: column;
   align-items: flex-end;
   gap: 5px;
-  font-size: 11px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.7857);
   text-align: right;
 }
 .weather-details span:last-child {
@@ -1611,11 +1611,11 @@ input[type="checkbox"] {
   align-items: center;
   flex-direction: column;
   gap: 8px;
-  font-size: 12px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.8571);
 }
 .weather-credit {
   display: block;
-  font-size: 9px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.6429);
   margin-top: 14px;
   opacity: 0.65;
 }
@@ -1631,7 +1631,7 @@ input[type="checkbox"] {
 .location-chooser input {
   min-width: 0;
   width: 100%;
-  font-size: 13px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.9286);
 }
 .location-results {
   max-height: 200px;
@@ -1671,7 +1671,7 @@ input[type="checkbox"] {
   background: color-mix(in srgb, var(--accent) 45%, #15191e);
 }
 .settings-content .setting-row {
-  font-size: 14px;
+  font-size: calc(var(--ui-font-size, 16px) * 1.0000);
 }
 
 /* Configurable group presentation */
@@ -1762,7 +1762,7 @@ input[type="checkbox"] {
   background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 .group-icon-grid span {
-  font-size: 10px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.7143);
 }
 .group-icon-grid button:hover {
   background: color-mix(in srgb, var(--accent) 15%, transparent);
@@ -1788,12 +1788,30 @@ input[type="checkbox"] {
   margin: 12px 0 20px;
 }
 .credits button {
-  font-size: 12px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.8571);
   text-align: left;
   color: var(--accent);
 }
 .layout-menu .eyebrow {
   text-transform: none;
-  font-size: 12px;
+  font-size: calc(var(--ui-font-size, 16px) * 0.8571);
   letter-spacing: 0.04em;
 }
+
+/* Settings controls remain readable at every supported UI text size. */
+.settings-modal .setting-row select { width: 190px; min-width: 190px; max-width: 55%; }
+.settings-footer { justify-content: space-between; }
+.settings-footer .outline { border: 1px solid var(--border, #42515b); background: transparent; padding: 10px 18px; }
+.weather-setting-location { display: block; font-size: .85em; opacity: .7; margin-top: 5px; }
+.mode-icon-group .group-activate { display: grid; place-items: center; padding: 0; }
+.mode-icon-group .group-activate svg { width: 16px; height: 16px; }
+.known-services-modal { z-index: 110; }
+.settings-modal { z-index: 100; }
+
+.app { font-size: var(--ui-font-size, 16px); }
+.app :is(.settings-modal,.modal,.context-menu,.layout-menu) { font-size: var(--ui-font-size, 16px); }
+.app :is(.settings-modal,.modal) :is(button,input,select,label,p) { font-size: inherit; }
+
+.service-editor-modal { z-index: 111; }
+.settings-modal:has(~ .known-services-modal) { pointer-events: none; }
+.settings-tabs { flex-wrap: wrap; }

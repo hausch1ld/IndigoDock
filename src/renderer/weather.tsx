@@ -1,3 +1,4 @@
+import { t, locale, setLanguage } from "../shared/i18n";
 import React, { useEffect, useState } from "react";
 import {
   Settings,
@@ -15,17 +16,17 @@ import {
 } from "lucide-react";
 import type { Bridge, WeatherLocation, WeatherData } from "../shared/model";
 export function condition(code: number) {
-  if (code === 0) return "Sonnig";
-  if (code === 1) return "Überwiegend sonnig";
-  if (code === 2) return "Teilweise bewölkt";
-  if (code === 3) return "Bewölkt";
-  if (code <= 48) return "Nebel";
-  if (code <= 57) return "Nieselregen";
-  if (code <= 67) return "Regen";
-  if (code <= 77) return "Schnee";
-  if (code <= 82) return "Regenschauer";
-  if (code <= 86) return "Schneeschauer";
-  return "Gewitter";
+  if (code === 0) return t("Sunny");
+  if (code === 1) return t("Mostly sunny");
+  if (code === 2) return t("Partly cloudy");
+  if (code === 3) return t("Cloudy");
+  if (code <= 48) return t("Fog");
+  if (code <= 57) return t("Drizzle");
+  if (code <= 67) return t("Rain");
+  if (code <= 77) return t("Snow");
+  if (code <= 82) return t("Rain showers");
+  if (code <= 86) return t("Snow showers");
+  return t("Thunderstorm");
 }
 function WeatherIcon({
   code,
@@ -83,10 +84,10 @@ export function LocationChooser({
   return (
     <div className="location-chooser">
       <div className="location-heading">
-        <strong>Standort auswählen</strong>
+        <strong>{t("Select location")}</strong>
         <button
           type="button"
-          title="Standortauswahl schließen"
+          title={t("Close location picker")}
           onClick={onClose}
         >
           <X size={16} />
@@ -101,17 +102,17 @@ export function LocationChooser({
           try {
             const r = await api.weatherSearch(query);
             setResults(r);
-            if (!r.length) setError("Kein Ort gefunden.");
+            if (!r.length) setError(t("No location found."));
           } catch {
-            setError("Ortssuche nicht verfügbar. Bitte erneut versuchen.");
+            setError(t("Location search unavailable. Please try again."));
           } finally {
             setBusy(false);
           }
         }}
       >
         <input
-          aria-label="Ort suchen"
-          placeholder="Stadt oder Postleitzahl"
+          aria-label={t("Search location")}
+          placeholder={t("City or postal code")}
           minLength={2}
           maxLength={120}
           required
@@ -122,7 +123,7 @@ export function LocationChooser({
           {busy ? "Suche …" : "Suchen"}
         </button>
       </form>
-      {error && <p role="status">{error}</p>}
+      {error && <p role="status">{t(error)}</p>}
       <div className="location-results">
         {results.map((p) => (
           <button
@@ -161,7 +162,7 @@ export function WeatherWidget({
           setError("");
         }
       } catch {
-        if (active) setError("Wetter momentan nicht verfügbar.");
+        if (active) setError(t("Weather is currently unavailable."));
       }
     };
     if (location) void read();
@@ -186,7 +187,7 @@ export function WeatherWidget({
     return (
       <button className="weather-setup" onClick={() => setEdit(true)}>
         <Settings size={24} />
-        <span>Standort auswählen</span>
+        <span>{t("Select location")}</span>
       </button>
     );
   return (
@@ -200,11 +201,10 @@ export function WeatherWidget({
             void api.command({ type: "infoLink", page: "weather" })
           }
         >
-          Wetterdaten: Open-Meteo
-        </button>{" "}
+          {t("Weather data: Open-Meteo")}</button>{" "}
         ·{" "}
         <button
-          title="Temperaturen gerundet; Lizenz CC BY 4.0"
+          title={t("Temperatures rounded; CC BY 4.0 license")}
           onClick={() =>
             void api.command({ type: "infoLink", page: "weatherLicense" })
           }
@@ -228,7 +228,7 @@ export function WeatherWidget({
                 {Math.round(data.days[0].min)}° / {Math.round(data.days[0].max)}
                 °
               </span>
-              <span title="Regenwahrscheinlichkeit heute">
+              <span title={t("Chance of rain today")}>
                 <Droplets size={13} />
                 {Math.round(data.days[0].rain)} %
               </span>
@@ -241,7 +241,7 @@ export function WeatherWidget({
                 title={`${condition(d.code)} · ${Math.round(d.min)}° bis ${Math.round(d.max)}°`}
               >
                 <span>
-                  {new Date(d.date + "T12:00:00").toLocaleDateString("de-DE", {
+                  {new Date(d.date + "T12:00:00").toLocaleDateString(locale(), {
                     weekday: "short",
                   })}
                 </span>
@@ -252,8 +252,8 @@ export function WeatherWidget({
           </div>
           {Date.now() - data.updated > 1800000 && (
             <small>
-              Letzter Stand:{" "}
-              {new Date(data.updated).toLocaleTimeString("de-DE", {
+              {t("Last updated:")}{" "}
+              {new Date(data.updated).toLocaleTimeString(locale(), {
                 hour: "2-digit",
                 minute: "2-digit",
               })}
@@ -261,7 +261,7 @@ export function WeatherWidget({
           )}
         </>
       ) : (
-        <p role="status">{error || "Wetter wird geladen …"}</p>
+        <p role="status">{error || "Loading weather …"}</p>
       )}
     </div>
   );

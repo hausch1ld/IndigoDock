@@ -1,34 +1,34 @@
-# Architektur und Sicherheitsmodell
+# Architecture and security model
 
-## Native Views und Layout
+## Processes and layout
 
-Eine BaseWindow enthält die lokale UI-WebContentsView und je gestartetem Dienst genau eine zusätzliche WebContentsView. Die `Map<serviceId, WebContentsView>` ist die maßgebliche Instanzverwaltung. Unsichtbare Views bleiben angehängt und werden mit `setVisible(false)` ausgeblendet. `backgroundThrottling: false` verhindert das automatische Drosseln der Dienstseiten. Stoppen entfernt und schließt die View ausdrücklich, einschließlich eines möglichen `beforeunload`-Dialogs. Beim endgültigen Fensterende werden auch die von BaseWindow nicht automatisch zerstörten WebContents geschlossen.
+An Electron BaseWindow owns the trusted local UI WebContentsView and one WebContentsView per running service. Hidden services remain alive. Layout changes update bounds without navigating or recreating services. Show, restore, focus and resume refresh native surfaces to prevent blank views.
 
-Der Main-Prozess berechnet Bounds aus DIP-Fensterabmessungen und validierten Breitenverhältnissen. Titel 40 DIP, Tabs 34 DIP, Dock 72 DIP, Splitter 6 DIP. React verwendet dieselbe reine Bounds-Funktion für Tabs und Splitter. Eine Größenänderung navigiert keine Seite. Pointer Capture hält den Splitterzug am UI-Element; IPC-Breitenupdates werden pro Animationsframe zusammengefasst. Zwei benachbarte Spalten teilen ihre gemeinsame Breite; bei sehr schmalen Fenstern sinkt die Mindestbreite symmetrisch.
+The main process computes bounds from validated column ratios and dock/sidebar position. React uses the same layout functions. Saved groups keep a layout and icon independently of the active workspace. Ordinary service selection opens a single view; Ctrl selection supports one to four columns.
 
-Eine DOM-Ebene kann native Geschwister-Views nicht überzeichnen. Beim Öffnen eines App-Menüs, Dialogs oder Drop-/Auswahl-Overlays werden daher die sichtbaren Dienste aufgenommen und ihre nativen Views vorübergehend ausgeblendet. Die UI zeigt Bildabzüge mit transparenten Zielbereichen. Die WebContents laufen weiter. Wenn eine Aufnahme fehlschlägt, bleibt der Zielbereich bedienbar, jedoch ohne Bildabzug. Beim Schließen werden dieselben Instanzen sichtbar. Die UI serialisiert IPC-Kommandos, sodass eine langsame Aufnahme einen späteren Schließbefehl nicht überholen kann.
+Menus use temporary local snapshots because DOM overlays cannot cover sibling native views. These images remain in memory and are not uploaded. Service content continues running. Closing a menu restores the existing views. Application prompts use a separate owned, modal BrowserWindow so their controls stay above native service views.
 
-Für jede Spaltenanzahl existiert ein eigener Layoutzustand. Beim erstmaligen Reduzieren landen zusätzliche Spalten in der letzten verbleibenden Spalte; der dortige aktive Dienst bleibt vorn. Bei Rückkehr zu einem bekannten Layout wird dessen Zustand wiederhergestellt. Es startet oder stoppt dabei kein Dienst. Innerhalb eines Layouts besitzt jeder Dienst höchstens eine Zuordnung.
+## Trust boundaries
 
-## Vertrauensgrenzen
+- Main owns local files, native integrations and persistent sessions.
+- External services have Node disabled, context isolation, sandboxing and web security enabled, and receive no application preload bridge.
+- Trusted UI IPC validates the exact webContents, main frame, local URL and Zod command schema.
+- Dialog replies are accepted only from that dialog's main frame. Dialog text is inserted with textContent; remote navigation and new windows are blocked. A restrictive CSP prevents page scripts and external resources.
+- Spotify controls and the element picker run small isolated-world adapters. They do not extract passwords, authentication tokens or cookies.
+- Only selected compatibility hosts have Electron/app markers removed from their user agent. The actual Chromium and operating-system version remain unchanged.
+- URLs cannot include embedded credentials or executable schemes. HTTP requires explicit configuration. Invalid certificates are not bypassed.
+- Custom icons accept bounded PNG/JPEG/WebP data; bundled SVG icons are trusted project assets.
 
-- Main besitzt Dateien, Windows-Integration und Sessions. Renderer und externe Inhalte erhalten keine Node-Rechte.
-- Die lokale UI erhält nur `snapshot`, `command` und einen abmeldbaren Zustandslistener.
-- IPC prüft konkrete WebContents-Identität, Main-Frame und exakte lokale UI-URL; jede Nutzlast wird mit Zod validiert.
-- Externe Ansichten: `nodeIntegration: false`, `contextIsolation: true`, `sandbox: true`, `webSecurity: true`; kein Preload mit App-Bridge.
-- Keine JavaScript-Injektion in Produktions-Dienste. JavaScript-Auswertung in Tests betrifft ausschließlich eigene lokale Testseiten.
-- Nur Discord erhält einen Browser-User-Agent ohne Electron-/App-Kennung. Keine Umgehung von Anbieter-Logins, keine Zertifikatsausnahmen, keine Passwort-/Tokenextraktion.
-- Top-Level-Navigation akzeptiert HTTPS; HTTP nur ausdrücklich und nur zum konfigurierten HTTP-Ursprung. Identitätsanbieter dürfen HTTPS-Redirects verwenden, erhalten aber keine automatisch übertragenen Medienberechtigungen.
-- Neue Fenster werden blockiert und nach Bestätigung im Systembrowser geöffnet. Das kann Popup-basierte Login-Flows einschränken.
-- Downloads verwenden einen Speichern-Dialog und werden niemals automatisch geöffnet.
-- Eigene Icons sind eingebettete PNG/JPEG/WebP-Daten; SVG ist nur für mitgelieferte Icons zulässig.
+## Sessions and permissions
 
-## Berechtigungen und Benachrichtigungen
+Each private service instance uses a stable persistent session partition. Shared profiles are opt-in and still subject to the browser's same-origin policy. Cookies and storage are checkpointed periodically, after cookie changes and during graceful shutdown. Updates keep the profile path stable. Server-side revocation or expiry cannot be prevented by local persistence.
 
-Session-Permission-Check und Permission-Request-Handler prüfen Dienstprofil und tatsächlichen Ursprung. Mikrofon, Kamera, Benachrichtigungen und Bildschirmfreigabe starten mit „Nachfragen“. Andere Fähigkeiten sind standardmäßig gesperrt. Bildschirmfreigabe fragt bei jedem Aufruf nach einer konkreten Fenster-/Monitorquelle; Systemaudio wird nur bei entsprechender Anfrage geteilt. Windows-Datenschutzeinstellungen gelten zusätzlich. Geänderte Regeln verhindern neue Freigaben; bereits laufende Kamera-/Mikrofonstreams zuverlässig über Stoppen des Dienstes beenden.
+Permission checks resolve both the service profile and requesting origin. Microphone, camera and notifications require configured permission. Display capture is allowed to proceed to the mandatory source picker unless denied in settings. Every capture requires explicit source selection; optional system audio is unchecked by default. Cancellation, destroyed frames and navigation are rejected. Other permissions are denied by default.
 
-Web-Benachrichtigungen verwendet Chromium/Electron nativ. Die globale Einstellung kann sie unabhängig vom Dienst blockieren. Es gibt keinen künstlichen Ungelesen-Zähler, weil dafür keine zuverlässige gemeinsame Anbieter-API vorliegt. Seiteneigene Töne werden durch Stummschalten der WebContents gesteuert; Windows-Benachrichtigungstöne zusätzlich in Windows verwalten.
+## Storage and network
 
-## Grenzen der aktuellen Architektur
+Configuration is written atomically with a backup in the stable user-data directory. Diagnostics are local and size-limited. Credentials are managed by Chromium, not copied into application configuration. Notes, custom URLs, weather location and cosmetic selectors are personal local settings and must not be published.
 
-Das Snapshot-Overlay friert das sichtbare Bild kurzzeitig ein; Audio und Hintergrundprozesse laufen weiter. Es ist keine echte Live-Komposition transparenter Electron-Views. Webseiten-Vollbild wird nicht als eigene IndigoDock-Funktion implementiert. Popups öffnen grundsätzlich extern. Profile sind lokal durch das Windows-Benutzerkonto geschützt; IndigoDock fügt keine eigene Passwortverschlüsselung oder Kontosynchronisierung hinzu.
+Weather requests go to fixed HTTPS Open-Meteo endpoints with timeouts and caching. Update checks occur only on request against GitHub Releases. There is no IndigoDock analytics or account-sync backend. Embedded websites make their own network requests and remain governed by their providers' privacy policies.
+
+See [privacy](PRIVACY.md) for publication checks and residual limitations.

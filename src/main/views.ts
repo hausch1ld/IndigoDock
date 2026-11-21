@@ -1,3 +1,4 @@
+import { appPrompt } from "./prompt";
 import { sessionProfile } from "../shared/profiles";
 import { sidebarWidth } from "../shared/sidebar";
 import {
@@ -50,17 +51,17 @@ export class ViewManager {
   }
 
   async pickElement(s: Service) {
-    if (this.picking) throw Error("Die Elementauswahl ist bereits geöffnet.");
+    if (this.picking) throw Error("The element picker is already open.");
 
     const wc = this.views.get(s.id)?.webContents;
 
-    if (!wc || wc.isDestroyed()) throw Error("Dienst zuerst starten.");
+    if (!wc || wc.isDestroyed()) throw Error("Start the service first.");
 
     const startOrigin = origin(wc.getURL());
 
     if (startOrigin !== origin(s.url))
       throw Error(
-        "Elemente können nur auf der Website des Dienstes ausgeblendet werden.",
+        "Elements can only be hidden on this service's website.",
       );
 
     this.picking = true;
@@ -69,7 +70,7 @@ export class ViewManager {
 
     try {
       const selector = await wc.executeJavaScriptInIsolatedWorld(1001, [
-        { code: `(${elementPicker.toString()})()` },
+        { code: `(${elementPicker.toString()})(${JSON.stringify(this.config().settings.language)})` },
       ]);
 
       if (selector === "__INDIGODOCK_RESTORE__") {
@@ -86,7 +87,7 @@ export class ViewManager {
         origin(wc.getURL()) === startOrigin
       ) {
         if (s.hiddenElements.length >= 100)
-          throw Error("Maximal 100 Ausblendregeln pro Dienst.");
+          throw Error("A maximum of 100 hidden-element rules per service is supported.");
 
         if (
           !s.hiddenElements.some(
@@ -155,16 +156,16 @@ export class ViewManager {
   async external(url: string) {
     if (!validUrl(url, true)) return;
 
-    const r = await dialog.showMessageBox(this.window, {
+    const r = await appPrompt(this.window, this.config(), {
       type: "question",
 
-      title: "Link extern öffnen",
+      title: "Open external link",
 
-      message: `Im Standardbrowser öffnen?`,
+      message: "Open in your default browser?",
 
       detail: origin(url),
 
-      buttons: ["Abbrechen", "Öffnen"],
+      buttons: ["Cancel", "Open"],
 
       defaultId: 0,
 
@@ -184,7 +185,7 @@ export class ViewManager {
     if (this.views.has(s.id)) return;
 
     if (!validUrl(s.url, s.allowHttp))
-      throw Error("Bitte zuerst eine gültige Dienst-URL konfigurieren.");
+      throw Error("Configure a valid service URL first.");
 
     const v = new WebContentsView({
       webPreferences: {
@@ -252,7 +253,7 @@ export class ViewManager {
         status(
           "error",
 
-          `Netzwerkfehler ${code}. Verbindung prüfen und erneut laden.`,
+          `Network error ${code}. Check your connection and reload.`,
         );
 
         this.log(`${s.id}: load ${code}`);
@@ -263,7 +264,7 @@ export class ViewManager {
       status(
         "error",
 
-        `Dienstprozess beendet: ${details.reason}. Bitte neu laden.`,
+        `Service process ended: ${details.reason}. Please reload.`,
       );
 
       this.log(`${s.id}: renderer ${details.reason}`);
@@ -386,7 +387,7 @@ export class ViewManager {
 
         .catch(() =>
           this.log(
-            "Session konnte beim Stoppen nicht vollständig geschrieben werden.",
+            "Could not fully save session data while stopping.",
           ),
         );
 
@@ -486,7 +487,7 @@ export class ViewManager {
 
     await new Promise<void>((resolve) => {
       const timer = setTimeout(() => {
-        this.log("Dienst reagiert beim Schließen nicht; erzwungenes Beenden.");
+        this.log("Service did not respond while closing; forced shutdown.");
 
         if (!wc.isDestroyed()) wc.close({ waitForBeforeUnload: false });
 
@@ -515,7 +516,7 @@ export class ViewManager {
       .flushStore()
 
       .catch(() =>
-        this.log("Session konnte nach dem Schließen nicht geschrieben werden."),
+        this.log("Could not save session data after closing."),
       );
   }
 

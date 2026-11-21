@@ -1,5 +1,6 @@
 // Runs only in an isolated renderer world, without Node or an IPC bridge.
-export function elementPicker(): Promise<string | null> {
+export function elementPicker(language = "en"): Promise<string | null> {
+  const text = (en: string, de: string) => language === "de" ? de : en;
   return new Promise((resolve) => {
     const host = document.createElement("div");
     host.style.cssText =
@@ -15,25 +16,25 @@ export function elementPicker(): Promise<string | null> {
     const panel = document.createElement("div");
     panel.className = "panel";
     const label = document.createElement("p");
-    label.textContent = "Element anklicken · Escape bricht ab";
+    label.textContent = text("Click an element · Escape cancels", "Element anklicken · Escape bricht ab");
     const slider = document.createElement("input");
     slider.type = "range";
     slider.min = "0";
     slider.value = "0";
     slider.disabled = true;
-    slider.setAttribute("aria-label", "Übergeordnete Container");
+    slider.setAttribute("aria-label", text("Parent containers", "Übergeordnete Container"));
     const info = document.createElement("p");
     const save = document.createElement("button");
-    save.textContent = "Ausblenden";
+    save.textContent = text("Hide", "Ausblenden");
     save.disabled = true;
     const again = document.createElement("button");
-    again.textContent = "Neu auswählen";
+    again.textContent = text("Select again", "Neu auswählen");
     const cancel = document.createElement("button");
-    cancel.textContent = "Abbrechen";
+    cancel.textContent = text("Cancel", "Abbrechen");
     const restore = document.createElement("button");
-    restore.textContent = "Wiederherstellen";
+    restore.textContent = text("Restore", "Wiederherstellen");
     const handle = document.createElement("p");
-    handle.textContent = "Elemente ausblenden · Zum Verschieben ziehen";
+    handle.textContent = text("Hide elements · Drag to move", "Elemente ausblenden · Zum Verschieben ziehen");
     handle.style.cssText = "cursor:move;touch-action:none;font-weight:600";
     handle.onpointerdown = (e) => {
       e.preventDefault();
@@ -130,7 +131,7 @@ export function elementPicker(): Promise<string | null> {
       slider.value = "0";
       save.disabled = false;
       show(chain[0]);
-      label.textContent = "Slider: größere oder kleinere Container auswählen";
+      label.textContent = text("Slider: select larger or smaller containers", "Slider: größere oder kleinere Container auswählen");
     };
     const blockPointer = (e: Event) => {
       if (e.target !== host) {
@@ -166,7 +167,7 @@ export function elementPicker(): Promise<string | null> {
       locked = false;
       save.disabled = true;
       slider.disabled = true;
-      label.textContent = "Element anklicken · Escape bricht ab";
+      label.textContent = text("Click an element · Escape cancels", "Element anklicken · Escape bricht ab");
     };
     document.addEventListener("mousemove", move, true);
     document.addEventListener("click", click, true);

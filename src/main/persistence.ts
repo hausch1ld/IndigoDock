@@ -26,7 +26,7 @@ export class Store {
         )
           config.sidebar.widgets.push("calendar");
         const ids = new Set(config.services.map((s) => s.id));
-        if (ids.size !== config.services.length) throw Error("Doppelte IDs");
+        if (ids.size !== config.services.length) throw Error("Duplicate IDs");
         for (const [key, l] of Object.entries(config.layouts)) {
           if (l.columns.length !== Number(key)) delete config.layouts[key];
           else normalize(l, ids);
@@ -44,7 +44,7 @@ export class Store {
           g.name = g.layout.columns
             .map(
               (col) =>
-                config.services.find((s) => s.id === col.active)?.name ?? "Freier Platz",
+                config.services.find((s) => s.id === col.active)?.name ?? "Empty slot",
             )
             .join(" + ")
             .slice(0, 120);
@@ -55,7 +55,7 @@ export class Store {
       } catch {
         if (fs.existsSync(file))
           this.error =
-            "Beschädigte Konfiguration: Sicherung oder Standardwerte wiederhergestellt.";
+            "Damaged configuration: restored backup or defaults.";
       }
     }
     return defaults();
@@ -66,7 +66,7 @@ export class Store {
       try {
         this.flush();
       } catch {
-        this.error = "Konfiguration konnte nicht gespeichert werden.";
+        this.error = "Could not save configuration.";
       }
     }, 250);
   }

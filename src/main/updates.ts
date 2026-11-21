@@ -4,7 +4,7 @@ import type { Snapshot } from "../shared/model";
 export class UpdateManager {
   state: NonNullable<Snapshot["update"]> = {
     state: "idle",
-    message: "Updates werden nur auf Anfrage geprüft.",
+    message: "Updates are checked only on request.",
   };
   constructor(
     private changed: () => void,
@@ -21,41 +21,41 @@ export class UpdateManager {
     autoUpdater.on("checking-for-update", () =>
       this.set({
         state: "checking",
-        message: "GitHub Releases werden geprüft …",
+        message: "Checking GitHub Releases …",
       }),
     );
     autoUpdater.on("update-available", (info) =>
       this.set({
         state: "available",
         version: info.version,
-        message: `Version ${info.version} ist verfügbar.`,
+        message: `Version ${info.version} is available.`,
       }),
     );
     autoUpdater.on("update-not-available", () =>
       this.set({
         state: "current",
-        message: `IndigoDock ${app.getVersion()} ist aktuell.`,
+        message: `IndigoDock ${app.getVersion()} is up to date.`,
       }),
     );
     autoUpdater.on("download-progress", (p) =>
       this.set({
         state: "downloading",
         percent: p.percent,
-        message: `Update wird heruntergeladen: ${Math.round(p.percent)} %`,
+        message: `Downloading update: ${Math.round(p.percent)} %`,
       }),
     );
     autoUpdater.on("update-downloaded", (info) =>
       this.set({
         state: "downloaded",
         version: info.version,
-        message: `Version ${info.version} ist bereit. Anmeldedaten bleiben erhalten.`,
+        message: `Version ${info.version} is ready. Sign-in data will be preserved.`,
       }),
     );
     autoUpdater.on("error", () =>
       this.set({
         state: "error",
         message:
-          "Update nicht verfügbar. Verbindung prüfen; das Repository benötigt einen veröffentlichten Windows-Release mit latest.yml.",
+          "Update unavailable. Check your connection; the repository needs a published Windows release with latest.yml.",
       }),
     );
   }
@@ -68,7 +68,7 @@ export class UpdateManager {
       this.set({
         state: "error",
         message:
-          "Updates sind in der installierten IndigoDock-Version verfügbar.",
+          "Updates are available in the installed version of IndigoDock.",
       });
       return;
     }
@@ -80,11 +80,11 @@ export class UpdateManager {
     }
     if (action === "download") {
       if (this.state.state !== "available")
-        throw Error("Zuerst nach Updates suchen.");
+        throw Error("Check for updates first.");
       this.set({
         ...this.state,
         state: "downloading",
-        message: "Download wird gestartet …",
+        message: "Starting download …",
       });
       try {
         await autoUpdater.downloadUpdate();
@@ -92,7 +92,7 @@ export class UpdateManager {
     }
     if (action === "install") {
       if (this.state.state !== "downloaded")
-        throw Error("Kein geprüftes Update heruntergeladen.");
+        throw Error("No verified update has been downloaded.");
       this.beforeInstall();
       autoUpdater.quitAndInstall(false, true);
     }

@@ -44,7 +44,7 @@ export class Widgets {
   }
   async control(action: string, value?: number) {
     const wc = this.spotify();
-    if (!wc) throw Error("Spotify zuerst starten.");
+    if (!wc) throw Error("Start Spotify first.");
     const result = await wc.executeJavaScriptInIsolatedWorld(1002, [
       {
         code: `(${spotifyAdapter.toString()})(${JSON.stringify(action)}, ${JSON.stringify(value ?? 1)})`,
@@ -52,7 +52,7 @@ export class Widgets {
     ]);
     if (!result)
       throw Error(
-        "Spotify-Steuerung noch nicht verfügbar. Zuerst einen Titel im Spotify-Dienst öffnen.",
+        "Spotify controls are not ready. Open a track in the Spotify service first.",
       );
   }
   private async collect(): Promise<WidgetData> {
@@ -79,7 +79,7 @@ export class Widgets {
           data.mixerError = r.error;
         })
         .catch(() => {
-          data.mixerError = "Windows-Audiomixer derzeit nicht erreichbar.";
+          data.mixerError = "Windows audio mixer is currently unavailable.";
         }),
       run(
         path.join(
